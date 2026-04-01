@@ -1,0 +1,192 @@
+seed: 20260330
+data_root: data
+output_root: summary-MMmodel/hcaf_arch_search
+summary_markdown: summary-MMmodel/hcaf_arch_search/EXPERIMENT_SUMMARY.md
+split_manifest_source: summary-MMmodel/pq_vs_multimodal_check/split_manifest.json
+
+session_filter:
+  exclude_session_ids:
+    - "MMdata_265.10s_0322_224132_no_secretion"
+
+task:
+  class_subset: [0, 2, 4]
+  class_names: ["0", "2", "4"]
+
+labels:
+  0:
+    - "0ml"
+    - "0 ml"
+    - "no"
+    - "no secretion"
+    - "none"
+  1:
+    - "1ml"
+    - "1 ml"
+  2:
+    - "2ml"
+    - "2 ml"
+  3:
+    - "3ml"
+    - "3 ml"
+  4:
+    - "4ml"
+    - "4 ml"
+
+window_sec: 5.0
+window_hop_sec: 5.0
+audio_sample_rate: 16000
+sensor_sample_rate: 100
+audio_n_mels: 64
+audio_n_fft: 1024
+audio_hop_length: 160
+audio_win_length: 400
+pad_short_recording: false
+
+batch_size: 16
+num_workers: 0
+epochs: 8
+learning_rate: 0.001
+weight_decay: 0.0001
+weighted_sampler: true
+class_weight: false
+loss: cross_entropy
+early_stop_patience: 3
+grad_clip_norm: 3.0
+
+grouped_cv:
+  n_splits: 3
+  n_repeats: 1
+  val_fraction_of_train: 0.25
+
+audio_frontend:
+  feature_type: pcen
+  n_mels: 96
+  f_min: 80.0
+  f_max: 6000.0
+  highpass_hz: 80.0
+
+report:
+  primary_experiment: hcaf_pcen_base_5s
+  baseline_experiment: hcaf_pcen_base_5s
+  main_experiment_names:
+    - hcaf_pcen_base_5s
+    - hcaf_pcen_bs8_5s
+    - hcaf_pcen_bs32_5s
+    - hcaf_pcen_attn_short_5s
+    - hcaf_pcen_attn_long_5s
+    - hcaf_pcen_resnet18_5s
+    - hcaf_pcen_resnet34_5s
+    - hcaf_pcen_resnet18_bs8_attnlong_5s
+  window_experiment_names: []
+  ablation_experiment_names: []
+
+main_experiments:
+  - name: hcaf_pcen_base_5s
+    display_name: HCAF PCEN base
+    modality: multimodal
+    window_sec: 5.0
+    group: main
+
+  - name: hcaf_pcen_bs8_5s
+    display_name: HCAF PCEN batch 8
+    modality: multimodal
+    window_sec: 5.0
+    group: main
+    config_overrides:
+      batch_size: 8
+
+  - name: hcaf_pcen_bs32_5s
+    display_name: HCAF PCEN batch 32
+    modality: multimodal
+    window_sec: 5.0
+    group: main
+    config_overrides:
+      batch_size: 32
+
+  - name: hcaf_pcen_attn_short_5s
+    display_name: HCAF PCEN short attention
+    modality: multimodal
+    window_sec: 5.0
+    group: main
+    model_overrides:
+      models:
+        multimodal:
+          audio_token_frames: 8
+          sensor_token_length: 12
+
+  - name: hcaf_pcen_attn_long_5s
+    display_name: HCAF PCEN long attention
+    modality: multimodal
+    window_sec: 5.0
+    group: main
+    model_overrides:
+      models:
+        multimodal:
+          audio_token_frames: 16
+          sensor_token_length: 24
+          self_attention_layers: 2
+
+  - name: hcaf_pcen_resnet18_5s
+    display_name: HCAF PCEN ResNet18 encoders
+    modality: multimodal
+    window_sec: 5.0
+    group: main
+    model_overrides:
+      models:
+        multimodal:
+          audio_encoder_type: resnet18
+          sensor_encoder_type: resnet18
+
+  - name: hcaf_pcen_resnet34_5s
+    display_name: HCAF PCEN ResNet34 encoders
+    modality: multimodal
+    window_sec: 5.0
+    group: main
+    model_overrides:
+      models:
+        multimodal:
+          audio_encoder_type: resnet34
+          sensor_encoder_type: resnet34
+
+  - name: hcaf_pcen_resnet18_bs8_attnlong_5s
+    display_name: HCAF PCEN ResNet18 + batch 8 + long attention
+    modality: multimodal
+    window_sec: 5.0
+    group: main
+    config_overrides:
+      batch_size: 8
+    model_overrides:
+      models:
+        multimodal:
+          audio_encoder_type: resnet18
+          sensor_encoder_type: resnet18
+          audio_token_frames: 16
+          sensor_token_length: 24
+          self_attention_layers: 2
+
+window_length_experiments: []
+ablation_experiments: []
+
+models:
+  multimodal:
+    architecture: advanced
+    model_type: hcaf_net
+    dropout: 0.3
+    audio_base_channels: 16
+    sensor_base_channels: 16
+    fusion_hidden_dim: 128
+    embedding_dim: 128
+    tcn_layers: 2
+    num_heads: 4
+    modality_dropout: 0.1
+    sensor_fusion_method: gated
+    final_fusion_method: softmax_gate
+    audio_token_frames: 12
+    sensor_token_length: 16
+    self_attention_layers: 1
+    audio_in_channels: 1
+    audio_encoder_type: basic
+    sensor_encoder_type: tcn
+    legacy_shared_sensor_norm: false
+    confidence_aware_gate: true
+    expert_residual_scale: 0.3

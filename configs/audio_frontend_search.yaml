@@ -1,0 +1,185 @@
+seed: 20260329
+data_root: data
+output_root: summary-MMmodel/audio_frontend_search
+summary_markdown: summary-MMmodel/audio_frontend_search/EXPERIMENT_SUMMARY.md
+
+session_filter:
+  exclude_session_ids:
+    - "MMdata_265.10s_0322_224132_no_secretion"
+
+task:
+  class_subset: [0, 2, 4]
+  class_names: ["0", "2", "4"]
+
+labels:
+  0:
+    - "0ml"
+    - "0 ml"
+    - "no"
+    - "no secretion"
+    - "none"
+  1:
+    - "1ml"
+    - "1 ml"
+  2:
+    - "2ml"
+    - "2 ml"
+  3:
+    - "3ml"
+    - "3 ml"
+  4:
+    - "4ml"
+    - "4 ml"
+
+window_sec: 5.0
+window_hop_sec: 5.0
+audio_sample_rate: 16000
+sensor_sample_rate: 100
+audio_n_mels: 64
+audio_n_fft: 1024
+audio_hop_length: 160
+audio_win_length: 400
+pad_short_recording: false
+
+batch_size: 16
+num_workers: 0
+epochs: 6
+learning_rate: 0.001
+weight_decay: 0.0001
+weighted_sampler: true
+class_weight: false
+loss: cross_entropy
+early_stop_patience: 3
+grad_clip_norm: 3.0
+
+grouped_cv:
+  n_splits: 3
+  n_repeats: 1
+  val_fraction_of_train: 0.25
+
+models:
+  audio_only:
+    dropout: 0.3
+    base_channels: 16
+    in_channels: 1
+
+experiments:
+  - name: audio_logmel64_base
+    display_name: log-Mel 64 base
+    modality: audio_only
+    window_sec: 5.0
+    model_overrides:
+      models:
+        audio_only:
+          in_channels: 1
+
+  - name: audio_logmel128
+    display_name: log-Mel 128
+    modality: audio_only
+    window_sec: 5.0
+    config_overrides:
+      audio_frontend:
+        n_mels: 128
+    model_overrides:
+      models:
+        audio_only:
+          in_channels: 1
+
+  - name: audio_logmel96_highpass80
+    display_name: log-Mel 96 + HP80
+    modality: audio_only
+    window_sec: 5.0
+    config_overrides:
+      audio_frontend:
+        n_mels: 96
+        f_min: 80.0
+        f_max: 6000.0
+        highpass_hz: 80.0
+    model_overrides:
+      models:
+        audio_only:
+          in_channels: 1
+
+  - name: audio_logmel96_bandpass150_5000
+    display_name: log-Mel 96 + BP150-5000
+    modality: audio_only
+    window_sec: 5.0
+    config_overrides:
+      audio_frontend:
+        n_mels: 96
+        f_min: 150.0
+        f_max: 5000.0
+        highpass_hz: 150.0
+        lowpass_hz: 5000.0
+    model_overrides:
+      models:
+        audio_only:
+          in_channels: 1
+
+  - name: audio_logmel64_preemphasis
+    display_name: log-Mel 64 + preemphasis
+    modality: audio_only
+    window_sec: 5.0
+    config_overrides:
+      audio_frontend:
+        preemphasis: 0.97
+    model_overrides:
+      models:
+        audio_only:
+          in_channels: 1
+
+  - name: audio_db96_highpass80
+    display_name: dB-Mel 96 + HP80
+    modality: audio_only
+    window_sec: 5.0
+    config_overrides:
+      audio_frontend:
+        n_mels: 96
+        f_min: 80.0
+        f_max: 6000.0
+        highpass_hz: 80.0
+        compression: db
+    model_overrides:
+      models:
+        audio_only:
+          in_channels: 1
+
+  - name: audio_pcen64
+    display_name: PCEN 64
+    modality: audio_only
+    window_sec: 5.0
+    config_overrides:
+      audio_frontend:
+        feature_type: pcen
+    model_overrides:
+      models:
+        audio_only:
+          in_channels: 1
+
+  - name: audio_pcen96_highpass80
+    display_name: PCEN 96 + HP80
+    modality: audio_only
+    window_sec: 5.0
+    config_overrides:
+      audio_frontend:
+        feature_type: pcen
+        n_mels: 96
+        f_min: 80.0
+        f_max: 6000.0
+        highpass_hz: 80.0
+    model_overrides:
+      models:
+        audio_only:
+          in_channels: 1
+
+  - name: audio_logmel64_delta2
+    display_name: log-Mel 64 + delta/delta2
+    modality: audio_only
+    window_sec: 5.0
+    config_overrides:
+      audio_frontend:
+        delta_order: 2
+    model_overrides:
+      models:
+        audio_only:
+          in_channels: 3

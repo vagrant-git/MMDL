@@ -1,0 +1,127 @@
+seed: 20260328
+data_root: data
+output_root: outputs/chapter4_024
+summary_markdown: EXPERIMENT_SUMMARY.md
+
+session_filter:
+  exclude_session_ids:
+    - "MMdata_265.10s_0322_224132_no_secretion"
+
+task:
+  class_subset: [0, 2, 4]
+  class_names: ["0", "2", "4"]
+
+labels:
+  0:
+    - "0ml"
+    - "0 ml"
+    - "no"
+    - "no secretion"
+    - "none"
+  1:
+    - "1ml"
+    - "1 ml"
+  2:
+    - "2ml"
+    - "2 ml"
+  3:
+    - "3ml"
+    - "3 ml"
+  4:
+    - "4ml"
+    - "4 ml"
+
+window_sec: 10.0
+window_hop_sec: 10.0
+window_length_candidates: [5.0, 10.0, 20.0]
+audio_sample_rate: 16000
+sensor_sample_rate: 100
+audio_n_mels: 64
+audio_n_fft: 1024
+audio_hop_length: 160
+audio_win_length: 400
+min_window_sec: 5.0
+pad_short_recording: false
+
+batch_size: 16
+num_workers: 0
+epochs: 10
+learning_rate: 0.001
+weight_decay: 0.0001
+weighted_sampler: true
+class_weight: false
+early_stop_patience: 3
+
+grouped_cv:
+  n_splits: 3
+  n_repeats: 1
+  val_fraction_of_train: 0.25
+
+main_experiments:
+  - name: audio_only_10s
+    modality: audio_only
+    window_sec: 10.0
+    group: main
+  - name: pressure_flow_10s
+    modality: pressure_flow
+    window_sec: 10.0
+    group: main
+  - name: multimodal_10s
+    modality: multimodal
+    window_sec: 10.0
+    group: main
+
+window_length_experiments:
+  - name: multimodal_5s
+    modality: multimodal
+    window_sec: 5.0
+    group: window
+  - name: multimodal_10s
+    modality: multimodal
+    window_sec: 10.0
+    group: window
+  - name: multimodal_20s
+    modality: multimodal
+    window_sec: 20.0
+    group: window
+
+ablation_experiments:
+  - name: multimodal_10s
+    modality: multimodal
+    window_sec: 10.0
+    group: ablation
+  - name: multimodal_minus_audio_10s
+    modality: multimodal_minus_audio
+    window_sec: 10.0
+    group: ablation
+  - name: multimodal_minus_pressure_10s
+    modality: multimodal_minus_pressure
+    window_sec: 10.0
+    group: ablation
+  - name: multimodal_minus_flow_10s
+    modality: multimodal_minus_flow
+    window_sec: 10.0
+    group: ablation
+
+models:
+  audio_only:
+    dropout: 0.3
+    base_channels: 16
+  pressure_flow:
+    architecture: advanced
+    dropout: 0.3
+    hidden_dim: 128
+    base_channels: 16
+    embedding_dim: 64
+    tcn_layers: 3
+    num_heads: 4
+  multimodal:
+    architecture: advanced
+    dropout: 0.3
+    audio_base_channels: 16
+    sensor_base_channels: 16
+    fusion_hidden_dim: 128
+    embedding_dim: 64
+    tcn_layers: 3
+    num_heads: 4
+    modality_dropout: 0.1
