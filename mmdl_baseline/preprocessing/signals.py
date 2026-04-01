@@ -220,3 +220,67 @@ def slice_or_pad_1d(x: torch.Tensor, start: int, length: int) -> torch.Tensor:
         return segment
     pad_amount = length - segment.numel()
     return F.pad(segment, (0, pad_amount))
+
+
+def resample_1d_to_length(x: torch.Tensor, target_length: int) -> torch.Tensor:
+    if x.numel() == 0:
+        return torch.zeros(target_length, dtype=x.dtype, device=x.device)
+    if x.numel() == target_length:
+        return x
+    if x.numel() == 1:
+        return x.repeat(target_length)
+    resized = F.interpolate(
+        x.unsqueeze(0).unsqueeze(0),
+        size=target_length,
+        mode="linear",
+        align_corners=False,
+    )
+    return resized.squeeze(0).squeeze(0)
+
+
+def moving_average_np(x: np.ndarray, width: int) -> np.ndarray:
+    if width <= 1:
+        return x
+    kernel = np.ones(width, dtype=np.float32) / width
+    return np.convolve(x, kernel, mode="same")
+
+
+def detect_flow_cycle_start_times(
+    time_array: np.ndarray,
+    flow_array: np.ndarray,
+    threshold_lpm: float = 2.0,
+    smooth_width: int = 21,
+    min_phase_sec: float = 0.6,
+    min_cycle_sec: float = 2.5,
+    max_cycle_sec: float = 5.5,
+) -> List[float]:
+    smoothed = moving_average_np(flow_array, smooth_width)
+    state = np.zeros_like(smoothed, dtype=np.int8)
+    state[smoothed >= threshold_lpm] = 1
+    state[smoothed <= -threshold_lpm] = -1
+
+    phase_starts: List[Tuple[float, int]] = []
+    current_state = int(state[0])
+    current_start = float(time_array[0])
+    for idx in range(1, len(state)):
+        next_state = int(state[idx])
+        if next_state == current_state:
+            continue
+        phase_end = float(time_array[idx])
+        if current_state != 0 and phase_end - current_start >= min_phase_sec:
+            phase_starts.append((current_start, current_state))
+        current_state = next_state
+        current_start = float(time_array[idx])
+    if current_state != 0 and float(time_array[-1]) - current_start >= min_phase_sec:
+        phase_starts.append((current_start, current_state))
+
+    cycle_starts: List[float] = []
+    for idx in range(len(phase_starts) - 2):
+        start_t, start_state = phase_starts[idx]
+        mid_t, mid_state = phase_starts[idx + 1]
+        next_t, next_state = phase_starts[idx + 2]
+        if start_state == 1 and mid_state == -1 and next_state == 1:
+            cycle_sec = next_t - start_t
+            if min_cycle_sec <= cycle_sec <= max_cycle_sec:
+                cycle_starts.append(start_t)
+    return cycle_starts

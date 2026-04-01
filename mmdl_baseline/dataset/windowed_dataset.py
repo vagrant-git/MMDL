@@ -10,8 +10,10 @@ from torch.utils.data import Dataset
 from mmdl_baseline.preprocessing.signals import (
     build_mel_transform,
     compute_audio_features,
+    detect_flow_cycle_start_times,
     load_audio,
     load_daq,
+    resample_1d_to_length,
     resolve_audio_frontend_config,
     slice_or_pad_1d,
     zscore_np,
@@ -44,6 +46,7 @@ class MultiModalWindowDataset(Dataset):
         self.window_sec = float(config["window_sec"])
         self.hop_sec = float(config["window_hop_sec"])
         self.pad_short = bool(config.get("pad_short_recording", False))
+        self.window_strategy = str(config.get("window_strategy", "fixed")).lower()
         self.window_indexes: List[WindowIndex] = []
         self.session_cache: Dict[str, Dict[str, torch.Tensor]] = {}
         self.audio_frontend = resolve_audio_frontend_config(config)
@@ -59,6 +62,44 @@ class MultiModalWindowDataset(Dataset):
     def _build_window_index(self) -> None:
         for session in self.sessions:
             total_sec = float(session.duration_sec)
+            if self.window_strategy in {"flow_cycle_aligned", "flow_cycle_normalized"}:
+                daq = load_daq(session.daq_path)
+                cycle_starts = detect_flow_cycle_start_times(
+                    time_array=daq["time"],
+                    flow_array=daq["flow"],
+                    threshold_lpm=float(self.config.get("cycle_threshold_lpm", 2.0)),
+                    smooth_width=int(self.config.get("cycle_smooth_width", 21)),
+                    min_phase_sec=float(self.config.get("cycle_min_phase_sec", 0.6)),
+                    min_cycle_sec=float(self.config.get("cycle_min_sec", max(2.5, self.window_sec - 1.5))),
+                    max_cycle_sec=float(self.config.get("cycle_max_sec", self.window_sec + 1.5)),
+                )
+                if self.window_strategy == "flow_cycle_aligned":
+                    for start in cycle_starts:
+                        if start + self.window_sec <= total_sec + 1e-6:
+                            self.window_indexes.append(
+                                WindowIndex(
+                                    session_id=session.session_id,
+                                    label=session.label,
+                                    start_sec=float(start),
+                                    end_sec=float(start + self.window_sec),
+                                )
+                            )
+                else:
+                    cycles_per_window = int(self.config.get("cycle_window_cycles", 1))
+                    cycle_step = int(self.config.get("cycle_step_cycles", 1))
+                    for idx in range(0, max(0, len(cycle_starts) - cycles_per_window), cycle_step):
+                        start = float(cycle_starts[idx])
+                        end = float(cycle_starts[idx + cycles_per_window])
+                        if end > start and end <= total_sec + 1e-6:
+                            self.window_indexes.append(
+                                WindowIndex(
+                                    session_id=session.session_id,
+                                    label=session.label,
+                                    start_sec=start,
+                                    end_sec=end,
+                                )
+                            )
+                continue
             if total_sec < self.window_sec and not self.pad_short:
                 continue
             if total_sec < self.window_sec and self.pad_short:
@@ -114,12 +155,18 @@ class MultiModalWindowDataset(Dataset):
         sensor_length = int(self.window_sec * self.sensor_sr)
         audio_start = int(item.start_sec * self.audio_sr)
         sensor_start = int(item.start_sec * self.sensor_sr)
+        audio_end = int(item.end_sec * self.audio_sr)
+        sensor_end = int(item.end_sec * self.sensor_sr)
 
         output: Dict[str, torch.Tensor] = {
             "label": torch.tensor(item.label, dtype=torch.long),
         }
         if self._needs_audio():
-            audio_window = slice_or_pad_1d(session_data["audio"], audio_start, audio_length)
+            if self.window_strategy == "flow_cycle_normalized":
+                audio_window = session_data["audio"][audio_start:audio_end]
+                audio_window = resample_1d_to_length(audio_window, audio_length)
+            else:
+                audio_window = slice_or_pad_1d(session_data["audio"], audio_start, audio_length)
             output["audio"] = compute_audio_features(
                 audio_window,
                 self.audio_sr,
@@ -127,8 +174,12 @@ class MultiModalWindowDataset(Dataset):
                 self.audio_frontend,
             )
         if self._needs_sensors():
-            pressure_window = slice_or_pad_1d(session_data["pressure"], sensor_start, sensor_length)
-            flow_window = slice_or_pad_1d(session_data["flow"], sensor_start, sensor_length)
+            if self.window_strategy == "flow_cycle_normalized":
+                pressure_window = resample_1d_to_length(session_data["pressure"][sensor_start:sensor_end], sensor_length)
+                flow_window = resample_1d_to_length(session_data["flow"][sensor_start:sensor_end], sensor_length)
+            else:
+                pressure_window = slice_or_pad_1d(session_data["pressure"], sensor_start, sensor_length)
+                flow_window = slice_or_pad_1d(session_data["flow"], sensor_start, sensor_length)
             output["pressure"] = pressure_window.unsqueeze(0)
             output["flow"] = flow_window.unsqueeze(0)
         output["session_id"] = item.session_id  # type: ignore[assignment]

@@ -402,6 +402,7 @@ class HCAFNet(nn.Module):
         audio_encoder_type = str(extra_cfg.get("audio_encoder_type", "basic"))
         audio_pretrained = bool(extra_cfg.get("audio_pretrained", False))
         sensor_encoder_type = str(extra_cfg.get("sensor_encoder_type", "tcn"))
+        self.audio_sensor_interaction = str(extra_cfg.get("audio_sensor_interaction", "cross_attention")).lower()
         sensor_transformer_layers = int(extra_cfg.get("sensor_transformer_layers", 2))
         sensor_transformer_heads = int(extra_cfg.get("sensor_transformer_heads", num_heads))
         sensor_transformer_dropout = extra_cfg.get("sensor_transformer_dropout")
@@ -452,18 +453,29 @@ class HCAFNet(nn.Module):
         self.pressure_repr_norm = nn.LayerNorm(embedding_dim)
         self.flow_repr_norm = nn.LayerNorm(embedding_dim)
         self.sensor_repr_norm = nn.LayerNorm(embedding_dim)
-        if confidence_aware_gate:
-            self.reliability_gate = ConfidenceAwareReliabilityGate(embedding_dim, num_classes=num_classes, dropout=dropout)
+        if self.audio_sensor_interaction == "direct_concat":
+            self.reliability_gate = None
+            self.audio_expert = None
+            self.sensor_expert = None
+            self.classifier = nn.Sequential(
+                nn.Linear(embedding_dim * 2, fusion_hidden_dim),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(fusion_hidden_dim, num_classes),
+            )
         else:
-            self.reliability_gate = ReliabilityGate(embedding_dim, dropout=dropout)
-        self.audio_expert = nn.Linear(embedding_dim, num_classes)
-        self.sensor_expert = nn.Linear(embedding_dim, num_classes)
-        self.classifier = nn.Sequential(
-            nn.Linear(embedding_dim, fusion_hidden_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(fusion_hidden_dim, num_classes),
-        )
+            if confidence_aware_gate:
+                self.reliability_gate = ConfidenceAwareReliabilityGate(embedding_dim, num_classes=num_classes, dropout=dropout)
+            else:
+                self.reliability_gate = ReliabilityGate(embedding_dim, dropout=dropout)
+            self.audio_expert = nn.Linear(embedding_dim, num_classes)
+            self.sensor_expert = nn.Linear(embedding_dim, num_classes)
+            self.classifier = nn.Sequential(
+                nn.Linear(embedding_dim, fusion_hidden_dim),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(fusion_hidden_dim, num_classes),
+            )
 
     def _sample_modality_masks(self, batch_size: int, device: torch.device) -> dict[str, torch.Tensor]:
         masks = {}
@@ -545,49 +557,55 @@ class HCAFNet(nn.Module):
         )
         sensor_repr = self.sensor_repr_fusion(pressure_repr, flow_repr, pressure_mask, flow_mask)
 
-        audio_cross = self.audio_to_sensor(audio_tokens, sensor_tokens)
-        sensor_cross = self.sensor_to_audio(sensor_tokens, audio_tokens)
-        audio_tokens = audio_mask.unsqueeze(1) * (
-            sensor_mask.unsqueeze(1) * audio_cross + (1.0 - sensor_mask.unsqueeze(1)) * audio_tokens
-        )
-        sensor_tokens = sensor_mask.unsqueeze(1) * (
-            audio_mask.unsqueeze(1) * sensor_cross + (1.0 - audio_mask.unsqueeze(1)) * sensor_tokens
-        )
-
-        joint_tokens = torch.cat([audio_tokens, sensor_tokens], dim=1)
-        for block in self.self_attention:
-            joint_tokens = block(joint_tokens)
-        audio_length = audio_tokens.shape[1]
-        audio_tokens = joint_tokens[:, :audio_length]
-        sensor_tokens = joint_tokens[:, audio_length:]
-
-        audio_repr = self.audio_repr_norm(self._masked_mean(audio_tokens, audio_mask) + audio_summary)
-        sensor_repr = self.sensor_repr_norm(self._masked_mean(sensor_tokens, sensor_mask) + sensor_repr)
-        audio_logits = self.audio_expert(audio_repr)
-        sensor_logits = self.sensor_expert(sensor_repr)
-        if self.confidence_aware_gate:
-            fused_repr, weights = self.reliability_gate(
-                audio_repr,
-                sensor_repr,
-                audio_logits,
-                sensor_logits,
-                audio_mask,
-                sensor_mask,
-            )
+        if self.audio_sensor_interaction == "direct_concat":
+            audio_repr = self.audio_repr_norm(self._masked_mean(audio_tokens, audio_mask) + audio_summary)
+            sensor_repr = self.sensor_repr_norm(self._masked_mean(sensor_tokens, sensor_mask) + sensor_repr)
+            logits = self.classifier(torch.cat([audio_repr, sensor_repr], dim=-1))
+            weights = None
+            audio_logits = None
+            sensor_logits = None
         else:
-            fused_repr, weights = self.reliability_gate(audio_repr, sensor_repr, audio_mask, sensor_mask)
-        logits = self.classifier(fused_repr)
-        if self.expert_residual_scale > 0:
-            expert_logits = weights[:, :1] * audio_logits + weights[:, 1:] * sensor_logits
-            logits = logits + self.expert_residual_scale * expert_logits
+            audio_cross = self.audio_to_sensor(audio_tokens, sensor_tokens)
+            sensor_cross = self.sensor_to_audio(sensor_tokens, audio_tokens)
+            audio_tokens = audio_mask.unsqueeze(1) * (
+                sensor_mask.unsqueeze(1) * audio_cross + (1.0 - sensor_mask.unsqueeze(1)) * audio_tokens
+            )
+            sensor_tokens = sensor_mask.unsqueeze(1) * (
+                audio_mask.unsqueeze(1) * sensor_cross + (1.0 - audio_mask.unsqueeze(1)) * sensor_tokens
+            )
+
+            joint_tokens = torch.cat([audio_tokens, sensor_tokens], dim=1)
+            for block in self.self_attention:
+                joint_tokens = block(joint_tokens)
+            audio_length = audio_tokens.shape[1]
+            audio_tokens = joint_tokens[:, :audio_length]
+            sensor_tokens = joint_tokens[:, audio_length:]
+
+            audio_repr = self.audio_repr_norm(self._masked_mean(audio_tokens, audio_mask) + audio_summary)
+            sensor_repr = self.sensor_repr_norm(self._masked_mean(sensor_tokens, sensor_mask) + sensor_repr)
+            audio_logits = self.audio_expert(audio_repr)
+            sensor_logits = self.sensor_expert(sensor_repr)
+            if self.confidence_aware_gate:
+                fused_repr, weights = self.reliability_gate(
+                    audio_repr,
+                    sensor_repr,
+                    audio_logits,
+                    sensor_logits,
+                    audio_mask,
+                    sensor_mask,
+                )
+            else:
+                fused_repr, weights = self.reliability_gate(audio_repr, sensor_repr, audio_mask, sensor_mask)
+            logits = self.classifier(fused_repr)
+            if self.expert_residual_scale > 0:
+                expert_logits = weights[:, :1] * audio_logits + weights[:, 1:] * sensor_logits
+                logits = logits + self.expert_residual_scale * expert_logits
         if self.capture_debug:
             debug_tensors = {
                 "audio_mask": audio_mask,
                 "pressure_mask": pressure_mask,
                 "flow_mask": flow_mask,
                 "sensor_mask": sensor_mask,
-                "audio_gate_weight": weights[:, :1],
-                "sensor_gate_weight": weights[:, 1:],
                 "audio_logits": audio_logits,
                 "sensor_logits": sensor_logits,
                 "audio_to_sensor_attn": self.audio_to_sensor.last_attn_weights,
@@ -595,7 +613,10 @@ class HCAFNet(nn.Module):
                 "pressure_to_flow_attn": self.pressure_to_flow.last_attn_weights,
                 "flow_to_pressure_attn": self.flow_to_pressure.last_attn_weights,
             }
-            if self.confidence_aware_gate:
+            if weights is not None:
+                debug_tensors["audio_gate_weight"] = weights[:, :1]
+                debug_tensors["sensor_gate_weight"] = weights[:, 1:]
+            if self.confidence_aware_gate and self.reliability_gate is not None:
                 debug_tensors["audio_conf_features"] = self.reliability_gate.last_audio_conf
                 debug_tensors["sensor_conf_features"] = self.reliability_gate.last_sensor_conf
             self.last_debug = {name: value.detach() for name, value in debug_tensors.items() if value is not None}

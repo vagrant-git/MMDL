@@ -1,80 +1,77 @@
 # MMDL
 
-多模态液体体积分类实验仓库。当前主线任务是基于 `audio + pressure + flow` 三模态，在 `0 / 2 / 4` 三分类设置下，围绕已经确定的最优 HCAF 路线做结果固化、机制验证和可复现整理，而不是继续无边界地扩展模型分支。
+多模态液体体积分类实验仓库。当前默认主线已经统一切到：
 
-线上仓库当前保留的是:
+- `audio encoder = ResNet18 (ImageNet init)`
+- `PQ + audio cross-attention`
+- 固定非对齐 `5 s` 窗
+- 以 `window-level macro-F1` 作为主模型选择指标
 
-- 代码与配置
-- 关键实验的汇总结果、图表和报告
-- 当前最终模型的证据链
+之所以把主指标切到 `window-level`，是因为当前记录级 `session` 很长、且长度不等；对当前任务来说，窗口判别更直接，也更适合比较不同融合结构本身的有效性。
 
-线上仓库当前不保留的是:
+## Current Final Model
 
-- 原始数据 `data/`
-- 大体积 checkpoint
-- 原始逐折训练中间目录
-
-## Current Status
-
-- final model: `hcaf_confgate_residual_pcen96hp80_5s`
+- final model: `hcaf_audio_r18img_pq_xattn_5s`
 - task: `0 / 2 / 4` three-class classification
+- modalities: `audio + pressure + flow`
+- audio encoder: `ResNet18` with `ImageNet` initialization
+- PQ encoder: `TCN`
+- primary metric: `window macro-F1`
 - split: `session`-grouped `1 repeat x 3 folds`
 - window length: `5 s`
 - final selection date: `2026-04-01`
 
-当前最终采用的不是参数最多的模型，而是证据链最完整、session-level 指标最高、且后续补充搜索没有再超过的那条主线:
+当前最终主结果目录：
+
+- [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat)
+
+## Main Result
+
+当前主对照使用同一份 split manifest、同一训练预算、同一音频前端 `PCEN96 + HP80`：
 
 | model | source | window macro-F1 | session macro-F1 |
 | --- | --- | ---: | ---: |
-| `audio_only_pcen96hp80_5s` | [`summary-MMmodel/final_model_unified_evidence`](summary-MMmodel/final_model_unified_evidence) | `0.7052 ± 0.0667` | `0.8296 ± 0.1362` |
-| `pressure_flow_5s` | [`summary-MMmodel/final_model_unified_evidence`](summary-MMmodel/final_model_unified_evidence) | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
-| `hcaf_confgate_residual_pcen96hp80_5s` | [`summary-MMmodel/final_model_unified_evidence`](summary-MMmodel/final_model_unified_evidence) | `0.9207 ± 0.0261` | `0.9407 ± 0.0838` |
+| `pressure_flow_5s` | [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat) | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
+| `hcaf_audio_r18img_audio_only_5s` | [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat) | `0.8709 ± 0.0722` | `0.9407 ± 0.0838` |
+| `hcaf_audio_r18img_pq_directconcat_5s` | [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat) | `0.7800 ± 0.1610` | `0.7852 ± 0.1923` |
+| `hcaf_audio_r18img_pq_xattn_5s` | [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat) | `0.9145 ± 0.0745` | `0.9407 ± 0.0838` |
 
-这轮整理后的核心结论很明确:
+当前核心结论：
 
-- 最终多模态模型在同一 split、同一训练预算下，同时高于 `audio-only` 和 `pressure+flow-only`
-- 相对 `audio-only` 的 session macro-F1 提升为 `+0.1111`
-- 相对 `pressure+flow-only` 的 session macro-F1 提升为 `+0.0889`
-- 真正把最终结果继续推高的关键不是更复杂主干，而是 `PCEN + 96 mel bins + 80 Hz high-pass`
-- `ResNet18 ImageNet`、更大的 PQ 编码器、更多序列模型分支目前都没有超过当前 best
-- 缺失模态鲁棒性现在也已补到与最终模型同一份 split manifest 下，见 [`summary-MMmodel/final_model_unified_evidence`](summary-MMmodel/final_model_unified_evidence)
+- `PQ + audio cross-attention` 在 `window-level` 上强于 `PQ-only`
+- `PQ + audio cross-attention` 在 `window-level` 上强于 `audio-only`
+- `PQ + audio cross-attention` 在 `window-level` 上强于 `direct concat PQ+audio`
+- 在当前 `ResNet18` 约束下，`session-level` 上 `cross-attention` 与 `audio-only` 打平，因此默认文档口径不再用 session 指标决定最终模型
 
-## Core Work
+对应窗口级差值：
 
-目前仓库的核心工作描述可以概括为 4 条:
+- vs `audio-only`: `+0.0436`
+- vs `PQ-only`: `+0.1646`
+- vs `direct concat`: `+0.1345`
 
-1. 固化最终主模型口径  
-   顶层结论统一围绕 `hcaf_confgate_residual_pcen96hp80_5s` 展开，不再把旧的 `Audio ResNet18 + complex PQ encoder` 路线写成“latest model”。
+## Why This Model
 
-2. 保留关键证据链  
-   当前推荐引用的主证据链是:
-   - [`summary-MMmodel/final_model_unified_evidence`](summary-MMmodel/final_model_unified_evidence): 统一口径下证明最终多模态优于 `audio-only` 与 `pressure+flow-only`，并补齐缺失模态结果
-   - [`summary-MMmodel/pq_vs_multimodal_check`](summary-MMmodel/pq_vs_multimodal_check): 证明上一版 HCAF 首次稳定超过 `PQ-only`
-   - [`summary-MMmodel/hcaf_fusion_gate_followup`](summary-MMmodel/hcaf_fusion_gate_followup): 证明收益来自融合机制本身
-   - [`summary-MMmodel/hcaf_confgate_improve_search`](summary-MMmodel/hcaf_confgate_improve_search): 证明进一步提升来自 `PCEN96 + HP80`
+当前保留 `hcaf_audio_r18img_pq_xattn_5s` 作为默认主模型，不是因为它在所有口径下都绝对最好，而是因为它同时满足：
 
-3. 把补充搜索收敛成“是否还能超过当前 best”的判断  
-   截至 `2026-04-01`，`modality_dropout=0.0` 和 `focal loss (gamma=1.5)` 两条补充迭代都已提前停止，没有严格超过当前最终模型。
+1. 音频分支满足 `ResNet18(ImageNet init)` 约束
+2. 在固定非对齐窗设置下，`window-level macro-F1` 最强
+3. 明确强于 `PQ-only`、`audio-only` 和 `direct concat`
+4. 结构清晰，便于继续做传感器增强和进一步搜索
 
-4. 让线上仓库直接可读  
-   代码、配置、报告、图表和汇总结果可以直接在 GitHub 查看；原始数据和大文件训练产物继续留在本地。
+## What Was Tried
 
-## Task And Evaluation Protocol
+在当前 `ResNet18` 主线上，已经系统尝试过：
 
-- label set: `0 / 2 / 4`
-- modalities: `audio.wav` + `daq.csv` 中的 `Pressure (cmH2O)` 和 `Flowrate (L/min)`
-- split unit: `session`
-- leakage rule: 先按 `session` 划分，再在各 split 内切窗
-- audio sample rate: `16000 Hz`
-- sensor sample rate: `100 Hz`
-- main window length: `5 s`
-- main hop length: `5 s`
-- grouped CV: `1 repeat x 3 folds`
-- excluded session: `MMdata_265.10s_0322_224132_no_secretion`
+- 更复杂 PQ encoder
+- 更高 `modality_dropout`
+- `direct concat PQ+audio`
+- 固定更长窗：`8 s / 10 s / 12 s`
+- 呼吸周期对齐切窗
+- 单周期 / 双周期归一化表示
 
-所有主流程都会先读取配置里的 `session_filter`，再做标签映射、划分和训练。
+目前这些方向都没有稳定超过当前固定非对齐 `5 s` 的 `cross-attention` 主线。
 
-## Repository Map
+## Repository Guide
 
 ```text
 MMDL/
@@ -86,48 +83,42 @@ MMDL/
 ├── train.py                  # 单模型训练入口
 ├── grouped_cv.py             # grouped cross-validation
 ├── session_aggregation_cv.py # session-level 聚合评估
-├── summary.md                # 最终模型技术说明
-├── EXPERIMENT_SUMMARY.md     # 当前最终模型索引
-└── report.md                 # 主线结果的文字化复盘
+├── summary.md                # 当前主模型技术说明
+├── EXPERIMENT_SUMMARY.md     # 当前主模型索引
+└── report.md                 # 逐轮实验记录
 ```
 
 ## What To Read First
 
-如果你是第一次看这个仓库，建议按这个顺序读:
-
 1. [`summary.md`](summary.md)  
-   当前最终模型的技术说明、数据流和结构细节。
+   当前主模型 `hcaf_audio_r18img_pq_xattn_5s` 的结构、数据流和性能分析。
 
 2. [`EXPERIMENT_SUMMARY.md`](EXPERIMENT_SUMMARY.md)  
-   当前最终模型口径、关键保留证据和最近补充迭代结论。
+   当前主模型索引和最短证据链摘要。
 
-3. [`report.md`](report.md)  
-   用于写作和复盘的主线叙述。
+3. [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat)  
+   当前最重要的正式对照目录，直接证明 `cross-attention` 强于 `PQ-only` / `audio-only` / `direct concat`。
 
-4. [`summary-MMmodel/hcaf_confgate_improve_search`](summary-MMmodel/hcaf_confgate_improve_search)  
-   当前 best 的直接来源。
-
-5. [`summary-MMmodel/final_model_unified_evidence`](summary-MMmodel/final_model_unified_evidence)  
-   用来说明“最终多模态已经同时超过 `audio-only` 与 `pressure+flow-only`，并给出统一 split 下的缺失模态结果”。
-
-6. [`summary-MMmodel/pq_vs_multimodal_check`](summary-MMmodel/pq_vs_multimodal_check)  
-   用来说明“上一版 HCAF 首次超过 PQ-only”的关键历史对照。
-
-7. [`summary-MMmodel/hcaf_fusion_gate_followup`](summary-MMmodel/hcaf_fusion_gate_followup)  
-   用来说明最终收益来自融合机制和 reliability gate，而不是偶然波动。
+4. [`report.md`](report.md)  
+   逐轮实验日志，包含 `ResNet18` 路线、固定窗搜索和周期切窗探索的完整过程。
 
 ## Key Configs
 
-- [`configs/summary_mmmodel.yaml`](configs/summary_mmmodel.yaml): `summary-MMmodel` 主实验入口
-- [`configs/pq_vs_multimodal_check.yaml`](configs/pq_vs_multimodal_check.yaml): `PQ-only vs 多模态` 主对照
-- [`configs/hcaf_fusion_gate_followup.yaml`](configs/hcaf_fusion_gate_followup.yaml): 融合机制补充验证
-- [`configs/hcaf_confgate_improve_search.yaml`](configs/hcaf_confgate_improve_search.yaml): `PCEN96 + HP80` 提升来源
-- [`configs/final_model_unified_evidence.yaml`](configs/final_model_unified_evidence.yaml): 最终统一证据配置，含 `audio-only / pressure+flow-only / final multimodal / missing-modality`
-- [`configs/chapter4_024.yaml`](configs/chapter4_024.yaml): 第四章 `0/2/4` 主实验
+- [`configs/hcaf_audioresnet_xattn_vs_concat.yaml`](configs/hcaf_audioresnet_xattn_vs_concat.yaml)  
+  当前最重要的正式主对照配置。
+
+- [`configs/hcaf_audioresnet_pq_seqmodels.yaml`](configs/hcaf_audioresnet_pq_seqmodels.yaml)  
+  `ResNet18 + PQ TCN / GRU / CNN-GRU` 的结构搜索配置。
+
+- [`configs/hcaf_audioresnet_cycle_window_search.yaml`](configs/hcaf_audioresnet_cycle_window_search.yaml)  
+  固定 `4 s / 5 s` 与周期切窗探索。
+
+- [`configs/hcaf_audioresnet_cycle_aligned_search.yaml`](configs/hcaf_audioresnet_cycle_aligned_search.yaml)  
+  周期对齐窗口探索。
 
 ## Environment
 
-按仓库约定，训练、评估和报告脚本都在 `dl` 环境下运行:
+按仓库约定，训练、评估和报告脚本都在 `dl` 环境下运行：
 
 ```bash
 source /home/oi/miniforge3/etc/profile.d/conda.sh
@@ -138,48 +129,24 @@ conda activate dl
 
 ## Quick Start
 
-运行 `summary-MMmodel` 主实验与汇总:
+运行当前主对照实验：
 
 ```bash
 source /home/oi/miniforge3/etc/profile.d/conda.sh
 conda activate dl
-python summary_mmmodel_experiments.py --config configs/summary_mmmodel.yaml
-python generate_summary_mmmodel_report.py --config configs/summary_mmmodel.yaml
+python summary_mmmodel_experiments.py --config configs/hcaf_audioresnet_xattn_vs_concat.yaml
 ```
 
-运行 grouped CV:
+运行呼吸周期统计：
 
 ```bash
 source /home/oi/miniforge3/etc/profile.d/conda.sh
 conda activate dl
-python grouped_cv.py --config configs/baseline.yaml
-python generate_grouped_cv_report.py --config configs/baseline.yaml
+python analyze_breath_cycles.py
 ```
 
-在已有 grouped CV 基础上做 session-level aggregation:
+## Notes
 
-```bash
-source /home/oi/miniforge3/etc/profile.d/conda.sh
-conda activate dl
-python session_aggregation_cv.py --config configs/baseline.yaml
-python generate_session_aggregation_report.py --config configs/baseline.yaml
-```
-
-运行第四章 `0/2/4` 三分类实验:
-
-```bash
-source /home/oi/miniforge3/etc/profile.d/conda.sh
-conda activate dl
-python chapter4_024_experiments.py --config configs/chapter4_024.yaml
-python generate_chapter4_024_report.py --config configs/chapter4_024.yaml
-```
-
-## Online Repo Notes
-
-为了让线上仓库保留“有用结果”而不是只剩代码，目前 `.gitignore` 的策略是:
-
-- 继续忽略 `data/`
-- 继续忽略 checkpoint 和大体积训练中间目录
-- 保留 `outputs/` 与 `summary-MMmodel/` 中的汇总结果、报告、图表和实验索引
-
-所以 GitHub 上看到的 `outputs/` 和 `summary-MMmodel/` 是“可读结果层”，不是完整训练缓存。
+- 旧的 `basic audio encoder` 最终模型文档口径已归档，不再作为当前默认说明
+- 当前默认说明统一围绕 `ResNet18 + PQ+audio cross-attention + fixed 5 s window`
+- 若后续继续优化，优先方向是增强 `sensor` 分支，而不是继续改音频编码器

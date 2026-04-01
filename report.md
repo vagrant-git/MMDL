@@ -1377,3 +1377,629 @@ session 级（majority voting）混淆矩阵:
 - session 级指标已经很高，但窗口级主要混淆 `0 -> 2` 仍然存在
 - 目前没有事件级时间标注，无法进一步验证边界截断与弱事件覆盖的具体来源
 - `Audio ResNet18` 路线可以追平当前 best，但没有继续超过，因此已归档为探索性分支，不再作为主线继续扩展
+
+## 18. 2026-04-01 新约束重启：固定 Audio Encoder = ImageNet 初始化 ResNet18
+
+根据新的用户约束，后续尝试不再围绕当前最终 `basic audio encoder` 主线展开，而是临时切换到：
+
+- `audio encoder = ResNet18`
+- `audio_pretrained = true`
+- 音频前端仍保持 `PCEN96 + HP80`
+
+目标是回答一个更具体的问题：
+
+> 在强制要求音频分支使用 ImageNet 初始化的 ResNet18 时，当前最稳的多模态结构还能否继续保持“多模态优于单模态音频”？
+
+### 18.1 统一证据配置
+
+新增配置:
+
+- `configs/hcaf_audioresnet_unified_evidence.yaml`
+
+当前已完成并确认的实验包括:
+
+- `hcaf_audio_r18img_pq_tcn_5s`
+  - 来源: 复用已有 `summary-MMmodel/hcaf_audioresnet_pq_seqmodels`
+- `pressure_flow_5s`
+  - 来源: 复用 `summary-MMmodel/pq_vs_multimodal_check`
+- `hcaf_audio_r18img_audio_only_5s`
+  - 新补跑完成三折
+
+尚未完整收尾的缺失模态分支已中止，不继续消耗算力，因为主问题已经足够明确。
+
+### 18.2 当前已得到的关键结果
+
+统一 split 下，主表结果为:
+
+| Model | Window-level macro-F1 | Session-level macro-F1 | 说明 |
+| --- | --- | --- | --- |
+| `hcaf_audio_r18img_audio_only_5s` | `0.8709 ± 0.0722` | `0.9407 ± 0.0838` | `ResNet18` 音频分支单模态 |
+| `pressure_flow_5s` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` | PQ-only 参考 |
+| `hcaf_audio_r18img_pq_tcn_5s` | `0.9145 ± 0.0745` | `0.9407 ± 0.0838` | `Audio R18 + PQ TCN` 多模态 |
+
+这组结果的含义非常关键:
+
+- 在 `Audio ResNet18` 约束下，full multimodal 的 session macro-F1 与 `audio-only` 三折均值完全打平
+- 也就是说，当前这条 `R18` 路线虽然仍然优于 `pressure+flow-only`，但**还不能用来支撑“多模态稳定优于单模态音频”**
+- 当前 `R18` 路线的主要问题已经不再是“性能太低”，而是“音频分支太强，导致多模态没有形成额外的 session-level 增益”
+
+### 18.3 额外 smoke：提高 modality dropout
+
+为了验证问题是否来自“模型过度依赖 ResNet18 音频分支”，又补做了一轮 fold1 定向实验:
+
+- 设置:
+  - 主干: `Audio R18 ImageNet + PQ TCN`
+  - 改动: `modality_dropout = 0.3`
+  - 评估: 仅跑 `repeat1_fold1`
+
+结果:
+
+- best epoch: `3`
+- window macro-F1: `0.8035`
+- session macro-F1: `0.8222`
+- session confusion matrix:
+
+```text
+[[2, 0, 0],
+ [1, 1, 0],
+ [0, 0, 2]]
+```
+
+结论:
+
+- 提高 modality dropout 并没有修复当前 `repeat1_fold1` 的关键错误
+- 当前 fold1 仍旧卡在 `0.8222`
+- 因此“单纯增加随机模态丢弃”不足以让 `ResNet18` 路线出现真正的多模态增益
+
+### 18.4 当前判断
+
+在 `audio encoder 必须是 ResNet18` 的新约束下，目前已经能较稳地得出:
+
+- `Audio R18 + PQ TCN` 可以达到与当前最终模型相同的 session-level 上限
+- 但它没有比 `R18 audio-only` 更好
+- 因而如果最终目标仍然是“多模态优于单模态音频”，那么**当前这条 ResNet18 路线还不够**
+
+下一步若还继续沿 `ResNet18` 路线推进，更值得尝试的两个方向会是:
+
+方向 A:
+
+- 继续保持 `Audio ResNet18`
+- 重点改 sensor 侧归纳偏置，让传感器信息真正补足 audio，而不是只做弱辅助
+- 例如:
+  - PQ 差分支路
+  - 双尺度 PQ temporal encoder
+  - 显式 pressure-flow cross-scale fusion
+
+方向 B:
+
+- 继续保持当前 `Audio ResNet18 + PQ TCN`
+- 重点改训练与评估，使模型不能只靠 audio 就完成 session-level 决策
+- 例如:
+  - 针对 session 内关键窗的 hard window mining
+  - 重叠滑窗
+  - 更偏事件存在性的 session aggregation
+
+## 19. 2026-04-01 Resp Cycle 分析与 4s 对齐实验
+
+在新的用户反馈里，提出了两个非常重要的约束与疑问:
+
+1. `audio encoder` 必须是 `ImageNet` 初始化的 `ResNet18`
+2. 现有 `5 s` 最优结果在生理上不够直观，因为模拟采集时:
+   - 吸气时长约 `2 s`
+   - 一个完整呼吸周期约 `3-4 s`
+
+因此本轮不再只做网络侧试错，而是先回答:
+
+> 对于实际使用，是否应该先根据 flow 判断呼吸周期，再把一个完整周期送入模型？
+
+### 19.1 呼吸周期统计
+
+新增脚本:
+
+- `analyze_breath_cycles.py`
+
+运行:
+
+```bash
+conda run -n dl python analyze_breath_cycles.py
+```
+
+输出:
+
+- `summary-MMmodel/breath_cycle_analysis.json`
+
+全数据统计结果:
+
+- 呼吸周期长度:
+  - mean: `3.9967 s`
+  - median: `4.0000 s`
+  - std: `0.0440 s`
+  - p10-p90: `[3.9900, 4.0100] s`
+- 吸气时长:
+  - mean: `2.1161 s`
+  - median: `2.0800 s`
+- 呼气时长:
+  - mean: `1.8806 s`
+  - median: `1.9100 s`
+
+这说明:
+
+- 当前数据里的呼吸周期几乎被呼吸机严格锁在 `4 s`
+- 用户对采集协议的直觉是对的
+- 单纯从生理可解释性看，`4 s` 或“按吸气起点对齐的周期窗”确实比 `5 s` 更合理
+
+### 19.2 固定 4s 非对齐窗口：效果很差
+
+新增配置:
+
+- `configs/hcaf_audioresnet_cycle_window_search.yaml`
+
+在 `repeat1_fold1` 上，先看 `Audio R18 ImageNet audio only 4 s` 的结果:
+
+- window macro-F1: `0.3985`
+- session macro-F1: `0.4127`
+
+结论:
+
+- 不能把“呼吸周期接近 `4 s`”简单等同于“把 window length 改成 `4 s` 就会更好”
+- 固定 `4 s` 且从 `0 s` 开始均匀切窗时，窗口起点和真实呼吸相位并不对齐，效果会明显变差
+
+### 19.3 周期对齐 4s 窗：生理上更合理，但当前 fold1 仍未带来多模态增益
+
+代码改动:
+
+- `mmdl_baseline/preprocessing/signals.py`
+  - 新增 `detect_flow_cycle_start_times()`
+- `mmdl_baseline/dataset/windowed_dataset.py`
+  - 新增 `window_strategy=flow_cycle_aligned`
+  - 支持先用 `flow` 检测吸气起点，再从周期起点切固定窗
+
+新增配置:
+
+- `configs/hcaf_audioresnet_cycle_aligned_search.yaml`
+
+在 `repeat1_fold1` 上做了两个 smoke:
+
+1. `Audio R18 ImageNet audio only cycle-aligned 4 s`
+   - window macro-F1: `0.8635`
+   - session macro-F1: `0.8222`
+
+2. `Audio R18 ImageNet + PQ TCN cycle-aligned 4 s`
+   - window macro-F1: `0.8064`
+   - session macro-F1: `0.8222`
+
+这组结果说明:
+
+- “周期对齐”确实修复了“固定 `4 s` 非对齐切窗”的巨大退化
+- 也就是说，`4 s` 本身不是问题，**相位对齐**才是关键
+- 但在当前 `repeat1_fold1` 上，周期对齐后:
+  - `audio-only` 与 `multimodal` 仍然打平
+  - 多模态并没有因为对齐到一个完整呼吸周期就自动优于单模态音频
+
+### 19.4 结合 ResNet18 统一证据后的当前判断
+
+本轮还补做并整理了:
+
+- `configs/hcaf_audioresnet_unified_evidence.yaml`
+
+其当前已完成的关键结果是:
+
+| Model | Window-level macro-F1 | Session-level macro-F1 |
+| --- | --- | --- |
+| `hcaf_audio_r18img_audio_only_5s` | `0.8709 ± 0.0722` | `0.9407 ± 0.0838` |
+| `pressure_flow_5s` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
+| `hcaf_audio_r18img_pq_tcn_5s` | `0.9145 ± 0.0745` | `0.9407 ± 0.0838` |
+
+再结合:
+
+- `modality_dropout=0.3` 在 `repeat1_fold1` 上仍然只有 `0.8222`
+- 周期对齐 `4 s` 的 `audio-only` / `multimodal` 在 `repeat1_fold1` 上也仍然打平
+
+目前可以更明确地说:
+
+- 在 `audio encoder = ResNet18` 的约束下，当前多模态系统的问题不再是“性能太低”
+- 真正的问题是:
+  - `audio` 分支已经足够强
+  - 但 `sensor` 分支还没有提供额外的 session-level 信息增益
+  - 因而多模态只能追平，而不能稳定超过单模态音频
+
+### 19.5 对“实际使用应先判周期再分类吗”的当前结论
+
+当前结论分两层:
+
+1. **从生理与工程角度**
+   - 是有道理的
+   - 因为本数据的呼吸周期确实稳定在 `4 s`
+   - 先判断周期、再按周期送入模型，比 `5 s` 固定非对齐窗更符合实际使用逻辑
+
+2. **从当前模型实验角度**
+   - 不能把“周期切窗”简单实现成“固定 `4 s` 窗”
+   - 必须至少做“周期起点对齐”
+   - 但即便做了周期对齐，当前 `ResNet18` 路线下也还没有自动产生“多模态优于单模态”的结果
+
+因此，若后续继续做“面向实际部署”的版本，更合理的方向会是:
+
+- 保留“先判呼吸周期”的思路
+- 但在模型侧进一步强化传感器分支的补充信息，而不是只把窗长改成 `4 s`
+- 同时考虑:
+  - 周期对齐的一周期窗
+  - 两周期拼接窗
+  - 以吸气相为中心的局部对齐窗
+
+## 20. 2026-04-01 ResNet18 路线继续追击：B 方向补充实验
+
+本轮在用户明确选择方向 B 后，继续围绕:
+
+- `audio encoder = ResNet18 (ImageNet init)`
+- 弱化对 session 指标的依赖，更关注 window-level 判别
+- 以及“是否应该先按呼吸周期切窗再分类”
+
+做了连续 3 轮聚焦实验。
+
+### 20.1 已知前提
+
+当前 `ResNet18` 路线的统一证据已经表明:
+
+- `hcaf_audio_r18img_audio_only_5s`
+  - window macro-F1: `0.8709 ± 0.0722`
+  - session macro-F1: `0.9407 ± 0.0838`
+- `hcaf_audio_r18img_pq_tcn_5s`
+  - window macro-F1: `0.9145 ± 0.0745`
+  - session macro-F1: `0.9407 ± 0.0838`
+
+也就是说:
+
+- 若更看重 window-level，则当前 `5 s` 下多模态已经高于单模态音频
+- 但若仍看 session-level，则两者打平
+
+因此后续优化重点转为:
+
+- 寻找更符合呼吸周期的切窗方式
+- 检查这些切窗方式是否能进一步扩大 window-level 的多模态优势
+
+### 20.2 迭代 1：提高 `modality_dropout`
+
+设置:
+
+- 主干: `Audio R18 ImageNet + PQ TCN`
+- 改动: `modality_dropout = 0.3`
+- 评估: `repeat1_fold1`
+
+结果:
+
+- best epoch: `3`
+- window macro-F1: `0.8035`
+- session macro-F1: `0.8222`
+
+结论:
+
+- 提高 `modality_dropout` 并没有让传感器信息更好地补足音频
+- fold1 结果仍然卡在 `0.8222`
+
+### 20.3 迭代 2：固定 `4 s` 非对齐窗 vs 周期对齐 `4 s`
+
+先做流量信号周期分析，结果非常稳定:
+
+- 全数据呼吸周期中位数约 `4.0 s`
+- 吸气时长中位数约 `2.08 s`
+- 呼气时长中位数约 `1.91 s`
+
+因此从生理上看，`4 s` 或按周期切窗是合理方向。
+
+实验 A: 固定 `4 s` 非对齐窗
+
+- `Audio R18 ImageNet audio only 4 s` 在 `repeat1_fold1` 上:
+  - window macro-F1: `0.3985`
+  - session macro-F1: `0.4127`
+
+说明:
+
+- 不能把“周期约 `4 s`”简单等同于“直接把固定窗改成 `4 s`”
+- 窗口起点不对齐呼吸相位时，效果会明显变差
+
+实验 B: 周期对齐 `4 s`
+
+- `Audio R18 ImageNet audio only cycle-aligned 4 s`
+  - window macro-F1: `0.8635`
+  - session macro-F1: `0.8222`
+- `Audio R18 ImageNet + PQ TCN cycle-aligned 4 s`
+  - window macro-F1: `0.8064`
+  - session macro-F1: `0.8222`
+
+结论:
+
+- 周期对齐确实修复了“固定 `4 s` 非对齐窗”的退化
+- 但在 `repeat1_fold1` 上，周期对齐 `4 s` 并没有带来更强的多模态优势
+- 相反，这一折里 `audio-only` 的 window 指标还高于 `multimodal`
+
+### 20.4 迭代 3：两周期对齐 `8 s`
+
+动机:
+
+- 如果一个完整周期约 `4 s`，那么 `8 s` 可以理解为“两个完整呼吸周期”
+- 这比 `5 s` 更符合采集过程的直觉，同时又保留更长上下文
+
+在 `repeat1_fold1` 上的结果:
+
+- `Audio R18 ImageNet audio only cycle-aligned 8 s`
+  - window macro-F1: `0.5752`
+  - session macro-F1: `0.5556`
+- `Audio R18 ImageNet + PQ TCN cycle-aligned 8 s`
+  - window macro-F1: `0.7989`
+  - session macro-F1: `0.8222`
+
+这组结果说明:
+
+- 相比单模态音频，`8 s` 两周期对齐下的多模态确实明显更好
+- 但它仍然没有超过当前 `5 s` 路线
+- 也就是说，“两周期对齐”在方向上有一定价值，但还不够成为新的最佳方案
+
+### 20.5 当前瓶颈判断
+
+到这里为止，已经连续出现 3 轮没有真正超过现有 `5 s` ResNet18 路线的尝试:
+
+1. `modality_dropout = 0.3`
+2. 周期对齐 `4 s`
+3. 两周期对齐 `8 s`
+
+因此当前更稳妥的判断是:
+
+- 用户关于“先按呼吸周期切窗”的直觉是正确的
+- 但这件事必须依赖**周期对齐**，不能简单把窗口从 `5 s` 改成 `4 s`
+- 在现有 `Audio ResNet18 + PQ TCN` 路线下，周期化切窗目前还没有超过 `5 s` 固定窗
+- 当前真正的瓶颈仍是:
+  - `audio` 分支已经足够强
+  - `sensor` 分支没有稳定贡献额外的 session-level 信息
+  - 周期切窗本身并不能自动解决这个问题
+
+### 20.6 现在两个更具体的备选方向
+
+方向 A:
+
+- 保留 `Audio ResNet18`
+- 继续沿“周期对齐切窗”思路推进
+- 但重点不是再试更多固定窗长，而是做更强的周期级表示
+- 可尝试:
+  - 单周期归一化后重采样到固定长度
+  - 两周期拼接 + 周期内相位位置编码
+  - 以吸气起点 / 呼气转换点为 anchor 的局部窗
+
+方向 B:
+
+- 保留 `Audio ResNet18 + PQ TCN` 的当前 `5 s` 路线
+- 直接增强 sensor 侧贡献，使多模态真正超过 `audio-only`
+- 可尝试:
+  - PQ 一阶/二阶差分分支
+  - pressure-flow 双尺度 temporal encoder
+  - 强化传感器支路在 reliability gate 前的独立 expert 约束
+
+## 21. 2026-04-01 A 方向继续：真正的周期级表示（cycle-normalized）
+
+在前一轮周期分析里，已经确认:
+
+- 呼吸周期稳定在约 `4.0 s`
+- 直接改成固定 `4 s` 窗不合理
+- 周期对齐是必要条件
+
+但“周期对齐 `4 s` / `8 s`”本质上仍然是:
+
+- 先用 flow 找起点
+- 再截一段固定时长的原始信号
+
+这还不是严格意义上的“单周期表示”。
+
+因此本轮继续补做了更强的 A 方向实现:
+
+- `mmdl_baseline/preprocessing/signals.py`
+  - 新增 `resample_1d_to_length()`
+- `mmdl_baseline/dataset/windowed_dataset.py`
+  - 新增 `window_strategy = flow_cycle_normalized`
+  - 支持:
+    - 先按 flow 检出周期边界
+    - 再把真实一个周期 / 两个周期的原始段落重采样到固定长度
+
+也就是说，当前模型看到的输入不再是“固定 4 s”或“固定 8 s”，而是:
+
+- 一个真实呼吸周期 -> 归一化到 `4 s` 长度
+- 或两个真实呼吸周期 -> 归一化到 `8 s` 长度
+
+### 21.1 单周期归一化 4s：fold1 结果
+
+在 `repeat1_fold1` 上:
+
+1. `audio_cycle1_norm4s`
+   - window macro-F1: `0.9923`
+   - session macro-F1: `1.0000`
+
+2. `multi_cycle1_norm4s`
+   - window macro-F1: `0.7966`
+   - session macro-F1: `0.8222`
+
+这组结果说明:
+
+- 单周期归一化本身是有效的表示方式
+- 对 `ResNet18 audio-only` 而言，效果甚至比当前 `5 s` 路线更强
+- 但这也暴露出当前最核心的问题:
+  - 一旦把周期级音频表示做得更“干净”，`audio` 分支反而更强
+  - 多模态模型并没有随之得到额外增益
+
+也就是说，在当前 `ResNet18 + PQ TCN` 路线下:
+
+- 问题不是“输入没有按周期组织”
+- 而是“sensor 分支仍然没有提供足够独特的信息”
+
+### 21.2 当前更明确的瓶颈判断
+
+到这里为止，A 方向已经连续做了多轮尝试:
+
+1. 固定 `4 s` 非对齐窗
+2. 周期对齐 `4 s`
+3. 周期对齐 `8 s`
+4. 单周期归一化 `4 s`
+
+其中:
+
+- A1 / A2 / A3 都没有超过当前 `5 s` 路线
+- A4 甚至使 `audio-only` 明显强于对应的多模态模型
+
+因此现在可以更明确地说:
+
+- “先按呼吸周期切窗再分类”这个想法本身是合理的
+- 但对当前 `ResNet18` 路线而言，单靠周期级输入改造并不能自动产生多模态优势
+- 真正的瓶颈已经被进一步定位到:
+  - `audio` 分支过强
+  - `sensor` 分支缺少独立补充信息
+  - 所以多模态结构无法稳定超过音频单分支
+
+### 21.3 按规则暂停前的两个更具体方向
+
+在 `audio encoder = ResNet18` 的约束下，已经连续多轮没有让“多模态优于单模态音频”成立，因此此处按自主迭代规则进入新一轮方向选择。
+
+方向 A1:
+
+- 保留周期级表示思路
+- 但不再优先改窗，而是给 sensor 分支加入更强的周期级结构
+- 可尝试:
+  - 对 pressure / flow 也做周期归一化
+  - 周期内相位位置编码
+  - pressure-flow 周期对齐后的 cross-cycle fusion
+
+方向 A2:
+
+- 暂时保留当前最好的周期级前端给 audio
+- 转而专门增强 sensor 分支，让多模态真正超过单模态音频
+- 可尝试:
+  - PQ 差分支路
+  - 双尺度 sensor temporal encoder
+  - 对 sensor expert 增加独立约束或辅助损失
+
+## 22. 2026-04-01 回到固定非对齐窗：Cross-Attention vs Direct Concat
+
+根据最新用户要求，当前主线明确切回:
+
+- 固定非对齐窗
+- `audio encoder = ResNet18 (ImageNet init)`
+- 主要关注 `window-level` 指标，而不是 session-level
+
+在这个目标下，新的核心问题变成:
+
+1. `PQ + audio cross-attention` 是否强于 `PQ-only`
+2. 是否强于 `audio-only`
+3. 是否强于“直接 concat PQ + audio vector”的简单基线
+
+### 22.1 专门对照配置
+
+新增配置:
+
+- `configs/hcaf_audioresnet_xattn_vs_concat.yaml`
+
+其设置为:
+
+- 固定 `5 s` 非对齐窗
+- 音频前端仍为 `PCEN96 + HP80`
+- `audio encoder = ResNet18 (ImageNet init)`
+- `sensor encoder = TCN`
+
+对照模型包括:
+
+- `hcaf_audio_r18img_audio_only_5s`
+- `pressure_flow_5s`
+- `hcaf_audio_r18img_pq_directconcat_5s`
+- `hcaf_audio_r18img_pq_xattn_5s`
+
+其中 `direct concat` 是本轮新加的结构对照:
+
+- 代码位置: `mmdl_baseline/models/multimodal.py`
+- 方式:
+  - 仍然使用同样的 audio / PQ encoder
+  - 仍然保留 pressure-flow 内部建模
+  - 但去掉 audio-sensor cross-attention
+  - 改为直接拼接 `audio_repr` 与 `sensor_repr` 后分类
+
+### 22.2 正式三折结果
+
+结果如下:
+
+| Model | Window-level macro-F1 | Session-level macro-F1 |
+| --- | --- | --- |
+| `hcaf_audio_r18img_audio_only_5s` | `0.8709 ± 0.0722` | `0.9407 ± 0.0838` |
+| `pressure_flow_5s` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
+| `hcaf_audio_r18img_pq_directconcat_5s` | `0.7800 ± 0.1610` | `0.7852 ± 0.1923` |
+| `hcaf_audio_r18img_pq_xattn_5s` | `0.9145 ± 0.0745` | `0.9407 ± 0.0838` |
+
+这组结果说明:
+
+- 在 `window-level` 上，`PQ + audio cross-attention` 已经同时强于:
+  - `audio-only`
+  - `PQ-only`
+  - `direct concat`
+- 相对差值为:
+  - vs `audio-only`: `+0.0436`
+  - vs `PQ-only`: `+0.1646`
+  - vs `direct concat`: `+0.1345`
+
+因此，如果将当前优化目标明确切换为“窗口级判别性能”，那么:
+
+- `hcaf_audio_r18img_pq_xattn_5s`
+
+已经满足“最优模型是 `PQ + audio cross-attention`”这一要求。
+
+### 22.3 固定非对齐窗长度 smoke：5 / 8 / 10 / 12 s
+
+为了回答“固定窗不一定要 `5 s`”这个问题，又对 `repeat1_fold1` 做了一个轻量 smoke，对比不同固定窗长下:
+
+- `audio-only`
+- `cross-attention`
+
+结果如下:
+
+| Window length | Audio-only window macro-F1 | Cross-attention window macro-F1 |
+| --- | --- | --- |
+| `5 s` | `0.7916`（来自历史同 fold 结果） | `0.7965`（来自历史同 fold 结果） |
+| `8 s` | `0.8983` | `0.8005` |
+| `10 s` | `0.7980` | `0.7920` |
+| `12 s` | `0.9227` | `0.8390` |
+
+这个 fold1 smoke 呈现出两个现象:
+
+1. 仅看单模态音频时，更长固定窗并不一定更差，`8 s` / `12 s` 甚至更高
+2. 但对当前 `PQ + audio cross-attention` 路线而言，固定更长窗并没有带来更强的多模态优势
+
+也就是说:
+
+- “不一定非得是 `5 s`”这个想法没错
+- 但在当前 `ResNet18 + PQ cross-attention` 路线下，固定长窗还没有显示出明显优于当前 `5 s` 的趋势
+
+### 22.4 当前判断
+
+基于以上结果，可以把当前结论分成两层:
+
+1. 若主要目标是 **window-level**
+   - 当前已经得到一个满足要求的模型:
+     - `hcaf_audio_r18img_pq_xattn_5s`
+   - 它强于 `PQ-only`
+   - 强于 `audio-only`
+   - 也强于 `direct concat`
+
+2. 若还想继续优化
+   - 下一步不应该再优先改“是否做周期对齐”
+   - 而更应继续在固定窗前提下增强 sensor 分支，让 `cross-attention` 的优势在更多折、更长窗上也稳定出现
+
+## 23. 当前文档口径切换
+
+从本节开始，仓库顶层文档默认统一切到:
+
+- `hcaf_audio_r18img_pq_xattn_5s`
+- `audio = ResNet18 (ImageNet init)`
+- 固定非对齐 `5 s`
+- 主指标 = `window macro-F1`
+
+原因是:
+
+- 这条路线已经正式证明:
+  - 强于 `PQ-only`
+  - 强于 `audio-only`
+  - 强于 `direct concat PQ+audio`
+- 这些结论都建立在同一份 split manifest、同一份音频前端和同一份训练预算下
+
+因此后续若没有再次刷出更强结果，当前仓库默认说明都应围绕这条 `PQ + audio cross-attention` 主线展开。

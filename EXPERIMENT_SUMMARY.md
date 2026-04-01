@@ -1,46 +1,54 @@
 # Experiment Summary
 
-本文件已重组为“当前最终模型索引”，旧的逐轮长列表结果保留在各子目录的 `EXPERIMENT_SUMMARY.md` 与 `report.md` 中。
+当前默认口径已经统一切到：
 
-- python_env: `dl`
-- final_model: `hcaf_confgate_residual_pcen96hp80_5s`
-- final_config: `configs/hcaf_confgate_improve_search.yaml`
-- final_evidence_config: `configs/final_model_unified_evidence.yaml`
+- final_model: `hcaf_audio_r18img_pq_xattn_5s`
+- primary_metric: `window macro-F1`
+- audio_encoder: `ResNet18 (ImageNet init)`
+- main_config: `configs/hcaf_audioresnet_xattn_vs_concat.yaml`
+- main_result_dir: `summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`
 - main_report: `report.md`
 
-## Final Status (2026-04-01)
+## Final Status
 
-| candidate | source | window macro-F1 | session macro-F1 | note |
-| --- | --- | ---: | ---: | --- |
-| `audio_only_pcen96hp80_5s` | `summary-MMmodel/final_model_unified_evidence` | `0.7052 ± 0.0667` | `0.8296 ± 0.1362` | 统一口径下的音频单模态对照 |
-| `pressure_flow_5s` | `summary-MMmodel/final_model_unified_evidence` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` | 统一口径下的 PQ-only 对照 |
-| `hcaf_confgate_residual_pcen96hp80_5s` | `summary-MMmodel/final_model_unified_evidence` | `0.9207 ± 0.0261` | `0.9407 ± 0.0838` | 当前最终模型 |
+| candidate | window macro-F1 | session macro-F1 | note |
+| --- | ---: | ---: | --- |
+| `pressure_flow_5s` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` | PQ-only baseline |
+| `hcaf_audio_r18img_audio_only_5s` | `0.8709 ± 0.0722` | `0.9407 ± 0.0838` | ResNet18 audio-only baseline |
+| `hcaf_audio_r18img_pq_directconcat_5s` | `0.7800 ± 0.1610` | `0.7852 ± 0.1923` | direct concat baseline |
+| `hcaf_audio_r18img_pq_xattn_5s` | `0.9145 ± 0.0745` | `0.9407 ± 0.0838` | current final model |
 
-## What Stayed
+## Why This Model
 
-- 保留最终模型: `HCAF + confidence-aware gate + expert residual + PCEN96 + HP80`
-- 保留关键证据:
-  - `summary-MMmodel/final_model_unified_evidence`: 统一 split 下证明最终模型高于 `audio-only` 与 `pressure+flow-only`，并补齐缺失模态结果
-  - `summary-MMmodel/pq_vs_multimodal_check`: 证明多模态已优于 PQ-only
-  - `summary-MMmodel/hcaf_fusion_gate_followup`: 证明增益来自融合机制，不是自然出现
-  - `summary-MMmodel/hcaf_confgate_improve_search`: 证明真正有效的进一步提升来自 `PCEN96 + HP80`
-  - `summary-MMmodel/hcaf_confgate_filter_lowpass300`: 证明 `LP300/BP80-300` 不如 `HP80`
-  - `summary-MMmodel/hcaf_arch_search` 与 `summary-MMmodel/hcaf_resnet18_imagenet_only`: 证明更大编码器、batch size、attention 长度、ResNet18 迁移学习都未超过当前 best
-  - `summary-MMmodel/hcaf_confgate_interpretability`: 给出 gate 行为、误差结构与边界效应证据
+当前选择 `hcaf_audio_r18img_pq_xattn_5s` 作为默认主模型，原因是：
 
-## 2026-04-01 Extra Iterations
+- 满足 `audio encoder = ResNet18(ImageNet init)` 的约束
+- 在 `window-level` 上强于 `PQ-only`
+- 在 `window-level` 上强于 `audio-only`
+- 在 `window-level` 上强于 `direct concat PQ+audio`
 
-- `configs/hcaf_moddrop_search.yaml`
-  - change: 将最终模型的 `modality_dropout` 从 `0.1` 改为 `0.0`
-  - fold1 result: window macro-F1=`0.8344`, session macro-F1=`0.8222`
-  - decision: 提前停止；即使后两折满分，最终 session 均值也只能追平当前 best，不能严格超过
-- `configs/hcaf_loss_search.yaml`
-  - change: 在最终模型上改用 `focal loss (gamma=1.5)`
-  - fold1 result: window macro-F1=`0.8213`, session macro-F1=`0.8222`
-  - decision: 提前停止；同样无法严格超过当前 best
+窗口级差值：
 
-## Archived
+- vs `PQ-only`: `+0.1646`
+- vs `audio-only`: `+0.0436`
+- vs `direct concat`: `+0.1345`
 
-- 旧的 `Audio R18 ImageNet + PQ TCN` 线路不再作为顶层“latest model”描述保留，只作为并行探索分支归档在 `outputs/` 与对应总结文件中。
-- 顶层推荐引用口径统一为 `hcaf_confgate_residual_pcen96hp80_5s`。
-- 若正文或答辩需要最简洁的一页证据，优先引用 `summary-MMmodel/final_model_unified_evidence`。
+## Key Evidence
+
+- [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat)  
+  直接证明 `cross-attention` 强于 `PQ-only` / `audio-only` / `direct concat`
+
+- [`summary-MMmodel/hcaf_audioresnet_pq_seqmodels`](summary-MMmodel/hcaf_audioresnet_pq_seqmodels)  
+  证明 `ResNet18 + PQ TCN` 是当前最稳的 `ResNet18` 主线
+
+- [`summary-MMmodel/hcaf_audioresnet_fixed_window_smoke`](summary-MMmodel/hcaf_audioresnet_fixed_window_smoke)  
+  说明固定更长非对齐窗在当前 fold1 上没有显示出优于 `5 s` 的趋势
+
+- [`summary-MMmodel/breath_cycle_analysis.json`](summary-MMmodel/breath_cycle_analysis.json)  
+  说明呼吸周期约为 `4 s`，用于支持周期级探索的生理依据
+
+## Current Recommendation
+
+- 当前文档、汇报和后续实现说明统一围绕 `hcaf_audio_r18img_pq_xattn_5s`
+- 当前主指标统一用 `window macro-F1`
+- 旧的 `basic audio encoder` 最终模型口径已归档，不再作为默认说明
