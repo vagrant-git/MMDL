@@ -1007,3 +1007,96 @@ conda run -n dl python generate_chapter4_figures.py
 
 - 若继续提性能: 引入事件级标注或更精细的时序对齐，减少 `5 s` 固定窗边界效应
 - 若继续增强证据: 扩充数据规模或增加跨采集条件验证，检验当前增益的外部稳定性
+
+## 15. 2026-04-01 自主迭代补充 2：Audio ResNet18 + 更复杂 PQ Encoder
+
+本轮按 `AGENT.md` 的自主迭代模式，围绕“把 audio encoder 固定升级为 `ResNet-18`，并继续尝试更复杂的 PQ encoder”做了连续 3 轮聚焦实验。所有 Python / 训练 / 评估命令均使用 `conda run -n dl` 执行。
+
+### 15.1 代码级改动
+
+- `mmdl_baseline/models/multimodal.py`
+  - 确认 `AudioTokenEncoder` 已支持 `audio_encoder_type=resnet18`
+  - 保持单通道输入时将 torchvision `ResNet-18` stem 卷积改为 `in_channels=1`
+  - 维持输出接口不变:
+    - audio tokens: `[B, 12, 128]`
+    - audio summary: `[B, 128]`
+- `mmdl_baseline/models/sensor_cnn.py`
+  - 新增了更复杂的 PQ encoder 备选实现:
+    - `hybrid_conformer`
+    - `res_tcn`
+  - 两种 encoder 都保持下游融合接口不变:
+    - sensor tokens: `[B, 16, 128]` 或配置指定的固定 token length
+    - sensor summary: `[B, 128]`
+- `configs/hcaf_audioresnet_pq_hybrid.yaml`
+  - 新建独立实验配置
+  - 为了加速在线音频前端计算，将 `num_workers` 从 `0` 提升到 `8`
+
+### 15.2 迭代结果
+
+统一对比基线:
+
+- 历史稳定对照: `Audio R18 ImageNet + PQ TCN`
+- 已有结果:
+  - window macro-F1: `0.9145 ± 0.0745`
+  - session macro-F1: `0.9407 ± 0.0838`
+
+本轮新尝试:
+
+1. `Audio R18 ImageNet + PQ Hybrid Conformer`
+   - 配置: `sensor_encoder_type=hybrid_conformer`
+   - fold1 结果:
+     - window macro-F1: `0.8014`
+     - session macro-F1: `0.8222`
+   - 观察:
+     - 验证集 macro-F1 很高，但测试集显著回落
+     - 主要退化发生在 `2ml` 类别召回
+
+2. `Audio R18 ImageNet + PQ Residual TCN`
+   - 配置: `sensor_encoder_type=res_tcn`
+   - fold1 结果:
+     - window macro-F1: `0.7977`
+     - session macro-F1: `0.8222`
+   - 观察:
+     - 相比 baseline TCN，测试窗口指标继续下降
+     - 同样主要损失在 `2ml` 类别
+
+3. `Audio R18 ImageNet + PQ Deep TCN`
+   - 配置:
+     - `sensor_encoder_type=tcn`
+     - `sensor_base_channels=24`
+     - `tcn_layers=5`
+     - `sensor_token_length=24`
+   - fold1 结果:
+     - window macro-F1: `0.8094`
+     - session macro-F1: `0.8222`
+   - 观察:
+     - 比前两轮略稳，但仍明显低于历史 `Audio R18 + PQ TCN`
+     - 错误模式依旧集中在 `2ml` 类别被压成 `0ml` 或 `4ml`
+
+### 15.3 本轮结论与中断原因
+
+连续 3 轮“更复杂 PQ encoder”尝试都没有带来提升，且首折都未超过历史 `Audio R18 + PQ TCN`。按照 `AGENT.md` 中“连续 `N` 次迭代后核心指标毫无提升则停止并给出两个具体备选方向”的规则，本轮在此中断，不继续盲目消耗完整三折预算。
+
+当前结论:
+
+- 单纯把 PQ encoder 做得更深、更宽、或加入显式 attention / conformer，并没有自动带来收益
+- 在当前数据规模与 `5 s / 500 points` 的短序列条件下，过强的 PQ encoder 更容易在验证集上看起来更好，但测试集泛化更差
+- 当前仍没有证据表明“Audio ResNet18 + 更复杂 PQ encoder”能稳定超过现有最终模型 `hcaf_confgate_residual_pcen96hp80_5s`
+
+### 15.4 下一步两个备选方向
+
+方向 A:
+
+- 不再继续堆大 PQ encoder，而是改做“中等复杂度 + 更强归纳偏置”的传感器建模
+- 具体可尝试:
+  - 在现有 `PQ TCN` 上加入显式一阶/二阶差分分支
+  - 加 pressure-flow 的共享 stem 或 cross-scale fusion
+  - 强化对短时事件边界的建模，而不是继续放大全局感受野
+
+方向 B:
+
+- 保留当前最优主干，转向数据与训练策略层面的增益
+- 具体可尝试:
+  - 更细粒度窗或重叠滑窗
+  - 针对 `2ml` 类别的 session-level hard example 重采样
+  - 更细的时间对齐 / 事件定位，减少 `5 s` 固定窗对弱事件的淹没

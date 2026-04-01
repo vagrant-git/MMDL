@@ -1,7 +1,7 @@
 seed: 20260330
 data_root: data
-output_root: outputs/hcaf_audioresnet_pq_hybrid
-summary_markdown: outputs/hcaf_audioresnet_pq_hybrid/EXPERIMENT_SUMMARY.md
+output_root: outputs/hcaf_audioresnet_pq_resnet_iter
+summary_markdown: outputs/hcaf_audioresnet_pq_resnet_iter/EXPERIMENT_SUMMARY.md
 split_manifest_source: summary-MMmodel/pq_vs_multimodal_check/split_manifest.json
 
 session_filter:
@@ -66,26 +66,24 @@ audio_frontend:
   highpass_hz: 80.0
 
 report:
-  primary_experiment: hcaf_audio_r18_pq_deeptcn_5s
-  baseline_experiment: hcaf_audio_r18_pq_tcn_5s
+  primary_experiment: hcaf_audio_r18img_pq_r18_sched_5s
+  baseline_experiment: hcaf_audio_r18img_pq_r18_5s
   main_experiment_names:
-    - hcaf_audio_r18_pq_deeptcn_5s
+    - hcaf_audio_r18img_pq_r18_sched_5s
   window_experiment_names: []
   ablation_experiment_names: []
 
 main_experiments:
-  - name: hcaf_audio_r18_pq_deeptcn_5s
-    display_name: Audio R18 ImageNet + PQ Deep TCN
+  - name: hcaf_audio_r18img_pq_r18_sched_5s
+    display_name: Audio R18 ImageNet + PQ R18 (ReduceLROnPlateau)
     modality: multimodal
     window_sec: 5.0
     group: main
-    model_overrides:
-      models:
-        multimodal:
-          sensor_base_channels: 24
-          sensor_encoder_type: tcn
-          tcn_layers: 5
-          sensor_token_length: 24
+    config_overrides:
+      lr_scheduler: reduce_on_plateau
+      lr_scheduler_factor: 0.5
+      lr_scheduler_patience: 1
+      min_learning_rate: 0.00001
 
 window_length_experiments: []
 ablation_experiments: []
@@ -110,7 +108,7 @@ models:
     audio_in_channels: 1
     audio_encoder_type: resnet18
     audio_pretrained: true
-    sensor_encoder_type: tcn
+    sensor_encoder_type: resnet18
     legacy_shared_sensor_norm: false
     confidence_aware_gate: true
     expert_residual_scale: 0.3
