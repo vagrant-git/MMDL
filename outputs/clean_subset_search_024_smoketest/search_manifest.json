@@ -1,0 +1,256 @@
+{
+  "config": "configs/chapter4_024.yaml",
+  "task_info": {
+    "class_subset": [
+      0,
+      2,
+      4
+    ],
+    "class_names": [
+      "0",
+      "2",
+      "4"
+    ],
+    "num_classes": 3,
+    "original_labels": [
+      0,
+      2,
+      4
+    ],
+    "label_to_index": {
+      "0": 0,
+      "2": 1,
+      "4": 2
+    }
+  },
+  "ordered_sessions": [
+    {
+      "session_id": "MMdata_1012.15s_0321_003441_yumi_4ml",
+      "session_dir": "data/MMdata_1012.15s_0321_003441_yumi_4ml",
+      "audio_path": "data/MMdata_1012.15s_0321_003441_yumi_4ml/audio.wav",
+      "daq_path": "data/MMdata_1012.15s_0321_003441_yumi_4ml/daq.csv",
+      "metadata_path": "data/MMdata_1012.15s_0321_003441_yumi_4ml/metadata.json",
+      "label": 2,
+      "label_text": "yumi 4ml|mapped:2",
+      "duration_sec": 1012.15,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_1071.50s_0327_201445_4ml",
+      "session_dir": "data/MMdata_1071.50s_0327_201445_4ml",
+      "audio_path": "data/MMdata_1071.50s_0327_201445_4ml/audio.wav",
+      "daq_path": "data/MMdata_1071.50s_0327_201445_4ml/daq.csv",
+      "metadata_path": "data/MMdata_1071.50s_0327_201445_4ml/metadata.json",
+      "label": 2,
+      "label_text": "4ml|mapped:2",
+      "duration_sec": 1071.5,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_1136.50s_0327_183428_2ml",
+      "session_dir": "data/MMdata_1136.50s_0327_183428_2ml",
+      "audio_path": "data/MMdata_1136.50s_0327_183428_2ml/audio.wav",
+      "daq_path": "data/MMdata_1136.50s_0327_183428_2ml/daq.csv",
+      "metadata_path": "data/MMdata_1136.50s_0327_183428_2ml/metadata.json",
+      "label": 1,
+      "label_text": "2ml|mapped:1",
+      "duration_sec": 1136.5,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_1200.00s_0322_232833_2ml_yumi",
+      "session_dir": "data/MMdata_1200.00s_0322_232833_2ml_yumi",
+      "audio_path": "data/MMdata_1200.00s_0322_232833_2ml_yumi/audio.wav",
+      "daq_path": "data/MMdata_1200.00s_0322_232833_2ml_yumi/daq.csv",
+      "metadata_path": "data/MMdata_1200.00s_0322_232833_2ml_yumi/metadata.json",
+      "label": 1,
+      "label_text": "2ml yumi|mapped:1",
+      "duration_sec": 1200.0,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_1200.00s_0327_172321_2ml",
+      "session_dir": "data/MMdata_1200.00s_0327_172321_2ml",
+      "audio_path": "data/MMdata_1200.00s_0327_172321_2ml/audio.wav",
+      "daq_path": "data/MMdata_1200.00s_0327_172321_2ml/daq.csv",
+      "metadata_path": "data/MMdata_1200.00s_0327_172321_2ml/metadata.json",
+      "label": 1,
+      "label_text": "2ml|mapped:1",
+      "duration_sec": 1200.0,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_195.00s_0322_230906_no_secretion",
+      "session_dir": "data/MMdata_195.00s_0322_230906_no_secretion",
+      "audio_path": "data/MMdata_195.00s_0322_230906_no_secretion/audio.wav",
+      "daq_path": "data/MMdata_195.00s_0322_230906_no_secretion/daq.csv",
+      "metadata_path": "data/MMdata_195.00s_0322_230906_no_secretion/metadata.json",
+      "label": 0,
+      "label_text": "no secretion|mapped:0",
+      "duration_sec": 195.0,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_1973.40s_0320_224508_no_secretion",
+      "session_dir": "data/MMdata_1973.40s_0320_224508_no_secretion",
+      "audio_path": "data/MMdata_1973.40s_0320_224508_no_secretion/audio.wav",
+      "daq_path": "data/MMdata_1973.40s_0320_224508_no_secretion/daq.csv",
+      "metadata_path": "data/MMdata_1973.40s_0320_224508_no_secretion/metadata.json",
+      "label": 0,
+      "label_text": "no secretion|mapped:0",
+      "duration_sec": 1973.4,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_235.00s_0320_224031_no_secretion",
+      "session_dir": "data/MMdata_235.00s_0320_224031_no_secretion",
+      "audio_path": "data/MMdata_235.00s_0320_224031_no_secretion/audio.wav",
+      "daq_path": "data/MMdata_235.00s_0320_224031_no_secretion/daq.csv",
+      "metadata_path": "data/MMdata_235.00s_0320_224031_no_secretion/metadata.json",
+      "label": 0,
+      "label_text": "no secretion|mapped:0",
+      "duration_sec": 235.0,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_265.10s_0322_224132_no_secretion",
+      "session_dir": "data/MMdata_265.10s_0322_224132_no_secretion",
+      "audio_path": "data/MMdata_265.10s_0322_224132_no_secretion/audio.wav",
+      "daq_path": "data/MMdata_265.10s_0322_224132_no_secretion/daq.csv",
+      "metadata_path": "data/MMdata_265.10s_0322_224132_no_secretion/metadata.json",
+      "label": 0,
+      "label_text": "no secretion|mapped:0",
+      "duration_sec": 265.1,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_272.75s_0327_174501_2ml",
+      "session_dir": "data/MMdata_272.75s_0327_174501_2ml",
+      "audio_path": "data/MMdata_272.75s_0327_174501_2ml/audio.wav",
+      "daq_path": "data/MMdata_272.75s_0327_174501_2ml/daq.csv",
+      "metadata_path": "data/MMdata_272.75s_0327_174501_2ml/metadata.json",
+      "label": 1,
+      "label_text": "2ml|mapped:1",
+      "duration_sec": 272.75,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_318.75s_0327_175326_no",
+      "session_dir": "data/MMdata_318.75s_0327_175326_no",
+      "audio_path": "data/MMdata_318.75s_0327_175326_no/audio.wav",
+      "daq_path": "data/MMdata_318.75s_0327_175326_no/daq.csv",
+      "metadata_path": "data/MMdata_318.75s_0327_175326_no/metadata.json",
+      "label": 0,
+      "label_text": "no|mapped:0",
+      "duration_sec": 318.75,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_442.75s_0327_203239_4ml",
+      "session_dir": "data/MMdata_442.75s_0327_203239_4ml",
+      "audio_path": "data/MMdata_442.75s_0327_203239_4ml/audio.wav",
+      "daq_path": "data/MMdata_442.75s_0327_203239_4ml/daq.csv",
+      "metadata_path": "data/MMdata_442.75s_0327_203239_4ml/metadata.json",
+      "label": 2,
+      "label_text": "4ml|mapped:2",
+      "duration_sec": 442.75,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_474.50s_0323_001822_4ml_yumi",
+      "session_dir": "data/MMdata_474.50s_0323_001822_4ml_yumi",
+      "audio_path": "data/MMdata_474.50s_0323_001822_4ml_yumi/audio.wav",
+      "daq_path": "data/MMdata_474.50s_0323_001822_4ml_yumi/daq.csv",
+      "metadata_path": "data/MMdata_474.50s_0323_001822_4ml_yumi/metadata.json",
+      "label": 2,
+      "label_text": "4ml yumi|mapped:2",
+      "duration_sec": 474.5,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_598.25s_0322_224923_no_secretion",
+      "session_dir": "data/MMdata_598.25s_0322_224923_no_secretion",
+      "audio_path": "data/MMdata_598.25s_0322_224923_no_secretion/audio.wav",
+      "daq_path": "data/MMdata_598.25s_0322_224923_no_secretion/daq.csv",
+      "metadata_path": "data/MMdata_598.25s_0322_224923_no_secretion/metadata.json",
+      "label": 0,
+      "label_text": "no secretion|mapped:0",
+      "duration_sec": 598.25,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_600.00s_0327_185444_2ml",
+      "session_dir": "data/MMdata_600.00s_0327_185444_2ml",
+      "audio_path": "data/MMdata_600.00s_0327_185444_2ml/audio.wav",
+      "daq_path": "data/MMdata_600.00s_0327_185444_2ml/daq.csv",
+      "metadata_path": "data/MMdata_600.00s_0327_185444_2ml/metadata.json",
+      "label": 1,
+      "label_text": "2ml|mapped:1",
+      "duration_sec": 600.0,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_660.75s_0327_164500_no_secretion",
+      "session_dir": "data/MMdata_660.75s_0327_164500_no_secretion",
+      "audio_path": "data/MMdata_660.75s_0327_164500_no_secretion/audio.wav",
+      "daq_path": "data/MMdata_660.75s_0327_164500_no_secretion/daq.csv",
+      "metadata_path": "data/MMdata_660.75s_0327_164500_no_secretion/metadata.json",
+      "label": 0,
+      "label_text": "no secretion|mapped:0",
+      "duration_sec": 660.75,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_820.00s_0327_172321_2ml",
+      "session_dir": "data/MMdata_820.00s_0327_172321_2ml",
+      "audio_path": "data/MMdata_820.00s_0327_172321_2ml/audio.wav",
+      "daq_path": "data/MMdata_820.00s_0327_172321_2ml/daq.csv",
+      "metadata_path": "data/MMdata_820.00s_0327_172321_2ml/metadata.json",
+      "label": 1,
+      "label_text": "2ml|mapped:1",
+      "duration_sec": 820.0,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_943.75s_0327_195859_4ml",
+      "session_dir": "data/MMdata_943.75s_0327_195859_4ml",
+      "audio_path": "data/MMdata_943.75s_0327_195859_4ml/audio.wav",
+      "daq_path": "data/MMdata_943.75s_0327_195859_4ml/daq.csv",
+      "metadata_path": "data/MMdata_943.75s_0327_195859_4ml/metadata.json",
+      "label": 2,
+      "label_text": "4ml|mapped:2",
+      "duration_sec": 943.75,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    },
+    {
+      "session_id": "MMdata_949.50s_0323_000227_4ml_yumi",
+      "session_dir": "data/MMdata_949.50s_0323_000227_4ml_yumi",
+      "audio_path": "data/MMdata_949.50s_0323_000227_4ml_yumi/audio.wav",
+      "daq_path": "data/MMdata_949.50s_0323_000227_4ml_yumi/daq.csv",
+      "metadata_path": "data/MMdata_949.50s_0323_000227_4ml_yumi/metadata.json",
+      "label": 2,
+      "label_text": "4ml yumi|mapped:2",
+      "duration_sec": 949.5,
+      "audio_sample_rate": 22050.0,
+      "sensor_sample_rate": 100.0
+    }
+  ]
+}

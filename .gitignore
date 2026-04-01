@@ -3,15 +3,37 @@ __pycache__/
 
 .DS_Store
 
+# Local datasets
 data/
-outputs/
 
-summary-MMmodel/
+# Large training artifacts and checkpoints
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.bin
+*.npy
+*.npz
+*.pkl
+*.joblib
 
-*.png
-*.jpg
-*.jpeg
-*.pdf
+# Keep summarized reports/figures in the repo, but ignore raw training runs
+outputs/**/runs/
+summary-MMmodel/**/runs/
+outputs/**/repeat*_fold*/
+summary-MMmodel/**/repeat*_fold*/
+outputs/**/trials/
+**/training_log.csv
+**/test_predictions.json
+**/test_session_predictions.json
+**/session_split.json
+**/split_summary.json
+**/resolved_config.json
+**/confusion_matrix.png
+**/confusion_matrix_session.png
+
+# Local logs
+*.log
 
 .venv/
 venv/

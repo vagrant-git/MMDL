@@ -1,0 +1,10 @@
+experiment,display_name,group,fold,window_accuracy,window_macro_f1,window_precision,window_recall,best_session_method,session_accuracy,session_macro_f1,session_precision,session_recall,best_epoch
+pressure_flow_5s_baseline,Pressure+Flow (gated),main,repeat1_fold1,0.947804473902237,0.9521023455519856,0.955311187476136,0.9494118171881851,majority_voting,0.8333333333333334,0.8222222222222223,0.8888888888888888,0.8333333333333334,2
+pressure_flow_5s_baseline,Pressure+Flow (gated),main,repeat1_fold2,0.9527104959630911,0.9576561350516736,0.9666679774029072,0.9535147392290249,majority_voting,1.0,1.0,1.0,1.0,5
+pressure_flow_5s_baseline,Pressure+Flow (gated),main,repeat1_fold3,0.9148648648648648,0.8973240134381196,0.9080620966335252,0.8923833264090847,majority_voting,1.0,1.0,1.0,1.0,3
+pressure_flow_5s_softmax_gate,Pressure+Flow (softmax-gate),main,repeat1_fold1,0.9461474730737366,0.9531019587311292,0.9532508513762615,0.953198481234879,majority_voting,1.0,1.0,1.0,1.0,2
+pressure_flow_5s_softmax_gate,Pressure+Flow (softmax-gate),main,repeat1_fold2,0.9111880046136102,0.9169769440133161,0.9386653288900036,0.9126984126984127,majority_voting,1.0,1.0,1.0,1.0,8
+pressure_flow_5s_softmax_gate,Pressure+Flow (softmax-gate),main,repeat1_fold3,0.9662162162162162,0.9682785009740847,0.967470002814235,0.9712643678160919,majority_voting,1.0,1.0,1.0,1.0,1
+pressure_flow_5s_concat_mlp,Pressure+Flow (concat-mlp),main,repeat1_fold1,0.9113504556752279,0.9220352676706138,0.9233123465681605,0.9210668169685019,majority_voting,0.8333333333333334,0.8222222222222223,0.8888888888888888,0.8333333333333334,2
+pressure_flow_5s_concat_mlp,Pressure+Flow (concat-mlp),main,repeat1_fold2,0.9607843137254902,0.9588512983601203,0.9599008120053449,0.9614512471655329,majority_voting,1.0,1.0,1.0,1.0,4
+pressure_flow_5s_concat_mlp,Pressure+Flow (concat-mlp),main,repeat1_fold3,0.918918918918919,0.912232411178115,0.911504424778761,0.9304031083050024,majority_voting,1.0,1.0,1.0,1.0,4
