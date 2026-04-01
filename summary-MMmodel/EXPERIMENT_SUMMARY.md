@@ -6,6 +6,7 @@
 
 - model: `hcaf_confgate_residual_pcen96hp80_5s`
 - source: `summary-MMmodel/hcaf_confgate_improve_search`
+- unified_evidence: `summary-MMmodel/final_model_unified_evidence`
 - window macro-F1: `0.9207 ± 0.0261`
 - session macro-F1: `0.9407 ± 0.0838`
 - best_session_method: `majority_voting`
@@ -14,6 +15,7 @@
 
 | purpose | source directory | key result |
 | --- | --- | --- |
+| 统一口径下证明 final model 高于单模态 / 双模态 | `summary-MMmodel/final_model_unified_evidence` | final multimodal=`0.9407`，高于 `audio-only` 的 `0.8296` 与 `pressure+flow-only` 的 `0.8519` |
 | 证明最终多模态超过 PQ-only | `summary-MMmodel/pq_vs_multimodal_check` | `hcaf_confgate_residual_5s` session macro-F1=`0.8815`，高于 `pressure_flow_5s` 的 `0.8519` |
 | 证明有效机制来自 fusion repair | `summary-MMmodel/hcaf_fusion_gate_followup` | `confidence-aware gate` 单独使用会退化；`gate + expert residual` 才稳定 |
 | 证明真正刷新的提升来自音频前端 | `summary-MMmodel/hcaf_confgate_improve_search` | `PCEN96 + HP80` 将 session macro-F1 从 `0.8815` 提升到 `0.9407` |
@@ -25,6 +27,7 @@
 ## What Was Kept
 
 - 保留:
+  - `final_model_unified_evidence`
   - `pq_vs_multimodal_check`
   - `hcaf_fusion_gate_followup`
   - `hcaf_confgate_improve_search`
@@ -51,4 +54,5 @@
 ## Recommendation
 
 - 论文、答辩和后续实现说明统一以 `hcaf_confgate_residual_pcen96hp80_5s` 为主模型。
+- 若需要单页展示“为什么这个模型就是最终模型”，优先引用 `summary-MMmodel/final_model_unified_evidence`。
 - 若需要原始逐折明细，直接查看对应子目录的 `EXPERIMENT_SUMMARY.md`、`fold_results.csv` 与 `overall_results.csv`。

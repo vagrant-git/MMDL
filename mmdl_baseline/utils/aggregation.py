@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections import Counter, defaultdict
 from typing import Dict, List, Tuple
 
@@ -26,6 +27,13 @@ def _mean_probability_pooling(items: List[Dict[str, object]]) -> Tuple[int, List
     return int(np.argmax(pooled)), pooled.tolist()
 
 
+def _topk_mean_probability_pooling(items: List[Dict[str, object]], ratio: float) -> Tuple[int, List[float]]:
+    probs = np.asarray([item["probabilities"] for item in items], dtype=np.float32)
+    k = max(1, math.ceil(len(items) * ratio))
+    pooled = np.sort(probs, axis=0)[-k:].mean(axis=0)
+    return int(np.argmax(pooled)), pooled.tolist()
+
+
 def _logit_averaging(items: List[Dict[str, object]]) -> Tuple[int, List[float]]:
     if all("logits" in item for item in items):
         logits = np.asarray([item["logits"] for item in items], dtype=np.float32)
@@ -34,6 +42,17 @@ def _logit_averaging(items: List[Dict[str, object]]) -> Tuple[int, List[float]]:
         probs = np.asarray([item["probabilities"] for item in items], dtype=np.float32)
         log_probs = np.log(np.clip(probs, 1e-8, 1.0))
         pooled = log_probs.mean(axis=0)
+    return int(np.argmax(pooled)), pooled.tolist()
+
+
+def _topk_logit_averaging(items: List[Dict[str, object]], ratio: float) -> Tuple[int, List[float]]:
+    if all("logits" in item for item in items):
+        logits = np.asarray([item["logits"] for item in items], dtype=np.float32)
+    else:
+        probs = np.asarray([item["probabilities"] for item in items], dtype=np.float32)
+        logits = np.log(np.clip(probs, 1e-8, 1.0))
+    k = max(1, math.ceil(len(items) * ratio))
+    pooled = np.sort(logits, axis=0)[-k:].mean(axis=0)
     return int(np.argmax(pooled)), pooled.tolist()
 
 
@@ -58,6 +77,12 @@ def aggregate_predictions_by_session(
             pred_label, pooled_values = _mean_probability_pooling(items)
         elif method == "logit_averaging":
             pred_label, pooled_values = _logit_averaging(items)
+        elif method == "top5_mean_probability_pooling":
+            pred_label, pooled_values = _topk_mean_probability_pooling(items, ratio=0.05)
+        elif method == "top10_mean_probability_pooling":
+            pred_label, pooled_values = _topk_mean_probability_pooling(items, ratio=0.10)
+        elif method == "top5_logit_averaging":
+            pred_label, pooled_values = _topk_logit_averaging(items, ratio=0.05)
         else:
             raise ValueError(f"Unsupported aggregation method: {method}")
         session_predictions.append(

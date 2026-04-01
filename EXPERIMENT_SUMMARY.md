@@ -5,20 +5,22 @@
 - python_env: `dl`
 - final_model: `hcaf_confgate_residual_pcen96hp80_5s`
 - final_config: `configs/hcaf_confgate_improve_search.yaml`
+- final_evidence_config: `configs/final_model_unified_evidence.yaml`
 - main_report: `report.md`
 
 ## Final Status (2026-04-01)
 
 | candidate | source | window macro-F1 | session macro-F1 | note |
 | --- | --- | ---: | ---: | --- |
-| `pressure_flow_5s` | `summary-MMmodel/pq_vs_multimodal_check` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` | PQ-only strongest reference |
-| `hcaf_confgate_residual_5s` | `summary-MMmodel/pq_vs_multimodal_check` | `0.7760 ± 0.0972` | `0.8815 ± 0.0838` | 首次稳定超过 PQ-only |
-| `hcaf_confgate_residual_pcen96hp80_5s` | `summary-MMmodel/hcaf_confgate_improve_search` | `0.9207 ± 0.0261` | `0.9407 ± 0.0838` | 当前最终模型 |
+| `audio_only_pcen96hp80_5s` | `summary-MMmodel/final_model_unified_evidence` | `0.7052 ± 0.0667` | `0.8296 ± 0.1362` | 统一口径下的音频单模态对照 |
+| `pressure_flow_5s` | `summary-MMmodel/final_model_unified_evidence` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` | 统一口径下的 PQ-only 对照 |
+| `hcaf_confgate_residual_pcen96hp80_5s` | `summary-MMmodel/final_model_unified_evidence` | `0.9207 ± 0.0261` | `0.9407 ± 0.0838` | 当前最终模型 |
 
 ## What Stayed
 
 - 保留最终模型: `HCAF + confidence-aware gate + expert residual + PCEN96 + HP80`
 - 保留关键证据:
+  - `summary-MMmodel/final_model_unified_evidence`: 统一 split 下证明最终模型高于 `audio-only` 与 `pressure+flow-only`，并补齐缺失模态结果
   - `summary-MMmodel/pq_vs_multimodal_check`: 证明多模态已优于 PQ-only
   - `summary-MMmodel/hcaf_fusion_gate_followup`: 证明增益来自融合机制，不是自然出现
   - `summary-MMmodel/hcaf_confgate_improve_search`: 证明真正有效的进一步提升来自 `PCEN96 + HP80`
@@ -41,3 +43,4 @@
 
 - 旧的 `Audio R18 ImageNet + PQ TCN` 线路不再作为顶层“latest model”描述保留，只作为并行探索分支归档在 `outputs/` 与对应总结文件中。
 - 顶层推荐引用口径统一为 `hcaf_confgate_residual_pcen96hp80_5s`。
+- 若正文或答辩需要最简洁的一页证据，优先引用 `summary-MMmodel/final_model_unified_evidence`。

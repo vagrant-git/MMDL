@@ -57,8 +57,20 @@ def build_dataloaders(
     sampler = None
     shuffle = True
     if config.get("weighted_sampler"):
+        sampler_mode = str(config.get("weighted_sampler_mode", "class_window")).lower()
         label_counts = Counter(idx.label for idx in train_dataset.window_indexes)
-        weights = [1.0 / label_counts[idx.label] for idx in train_dataset.window_indexes]
+        if sampler_mode == "class_window":
+            weights = [1.0 / label_counts[idx.label] for idx in train_dataset.window_indexes]
+        elif sampler_mode == "class_session":
+            session_window_counts = Counter(idx.session_id for idx in train_dataset.window_indexes)
+            session_to_label = {idx.session_id: idx.label for idx in train_dataset.window_indexes}
+            label_session_counts = Counter(session_to_label.values())
+            weights = [
+                1.0 / (label_session_counts[idx.label] * session_window_counts[idx.session_id])
+                for idx in train_dataset.window_indexes
+            ]
+        else:
+            raise ValueError(f"Unsupported weighted_sampler_mode: {sampler_mode}")
         sampler = WeightedRandomSampler(weights=weights, num_samples=len(weights), replacement=True)
         shuffle = False
     for split_name, dataset in datasets.items():

@@ -1100,3 +1100,280 @@ conda run -n dl python generate_chapter4_figures.py
   - 更细粒度窗或重叠滑窗
   - 针对 `2ml` 类别的 session-level hard example 重采样
   - 更细的时间对齐 / 事件定位，减少 `5 s` 固定窗对弱事件的淹没
+
+## 16. 2026-04-01 自主迭代补充 3：固定 Audio ResNet18 后的 3 轮追击
+
+按新的约束，后续尝试统一固定 `audio encoder = ResNet18`，并围绕 `Audio R18 ImageNet + PQ TCN` 这条当前最稳的 ResNet18 线路继续迭代。所有正式 Python / 评估 / 训练命令均使用 `conda run -n dl` 或等价的 `PYTHONPATH=. conda run -n dl python ...` 执行。
+
+### 16.1 当前 ResNet18 线最新状态
+
+- 当前 ResNet18 音频分支里表现最好的模型仍是:
+  - `Audio R18 ImageNet + PQ TCN`
+  - `Audio R18 ImageNet + PQ CNN-GRU`
+- 两者在固定 split 下的正式三折结果相同:
+  - window macro-F1: `0.9145 ± 0.0745` / `0.9181 ± 0.0746`
+  - session macro-F1: `0.9407 ± 0.0838`
+- 它们的共同瓶颈也完全一致:
+  - `repeat1_fold1` 中 `MMdata_1200.00s_0322_232833_2ml_yumi` 会被整段错分
+  - 当前错误不是不同 PQ 主干带来的随机波动，而是同一个难例反复失败
+
+### 16.2 迭代 1：事件感知 session 聚合验证
+
+代码改动:
+
+- `mmdl_baseline/utils/aggregation.py`
+  - 新增:
+    - `top5_mean_probability_pooling`
+    - `top10_mean_probability_pooling`
+    - `top5_logit_averaging`
+  - 目的: 检查长 session 中“少量强事件窗是否被多数背景窗淹没”
+
+运行:
+
+- `conda run -n dl python summary_mmmodel_experiments.py --config configs/hcaf_audioresnet_pq_seqmodels.yaml`
+- `conda run -n dl python summary_mmmodel_experiments.py --config configs/hcaf_resnet18_imagenet_only.yaml`
+
+结果:
+
+- 新增聚合方法已经被正式写入 `summary.json`
+- 但在 `Audio R18 ImageNet + PQ TCN` 与 `Audio R18 ImageNet + PQ CNN-GRU` 上:
+  - `best_session_method` 仍然是 `majority_voting`
+  - session macro-F1 仍为 `0.9407 ± 0.0838`
+- 说明:
+  - 之前怀疑的“事件感知 top-k pooling 能直接超过 majority voting”在正式核验中没有成立
+  - 当前 majority voting 已经足够强，问题不只是 session aggregation
+
+本轮结论:
+
+- 聚合层不是当前主要瓶颈
+- 继续只改 aggregation 的收益很有限
+
+### 16.3 迭代 2：按 class + session 平衡的采样策略
+
+代码改动:
+
+- `mmdl_baseline/train_eval.py`
+  - `build_dataloaders()` 新增 `weighted_sampler_mode`
+  - 新模式 `class_session`:
+    - 先平衡类别
+    - 再在类别内部按 session 等权，避免超长 session 用更多窗口主导采样
+
+Smoke 实验设置:
+
+- 主干保持:
+  - `audio encoder = ResNet18 (ImageNet init)`
+  - `sensor encoder = TCN`
+- 仅在 `repeat1_fold1` 上运行
+- 额外设置:
+  - `weighted_sampler_mode=class_session`
+  - `num_workers=8`
+
+结果:
+
+- best epoch: `2`
+- window macro-F1: `0.8383`
+- session macro-F1: `0.8222`
+- session confusion matrix:
+
+```text
+[[2, 0, 0],
+ [0, 1, 1],
+ [0, 0, 2]]
+```
+
+解读:
+
+- 核心 session 指标没有提升
+- 原本 `2ml_yumi -> 0ml` 的错误，被改成了 `2ml_yumi -> 4ml`
+- 说明 session-balanced sampling 改变了边界形状，但没有真正修复难例
+
+本轮结论:
+
+- 当前问题不是简单的“长 session 在采样中主导训练”就能解释
+- 该方向暂不值得直接扩成完整三折
+
+### 16.4 迭代 3：冻结 Audio ResNet18 前 2 轮训练
+
+运行设置:
+
+- 主干保持:
+  - `audio encoder = ResNet18 (ImageNet init)`
+  - `sensor encoder = TCN`
+- 仅在 `repeat1_fold1` 上运行
+- 额外设置:
+  - `freeze_audio_backbone_epochs=2`
+  - `freeze_audio_backbone_bn_eval=true`
+  - `num_workers=8`
+
+结果:
+
+- best epoch: `7`
+- best val macro-F1: `0.9933`
+- window macro-F1: `0.7908`
+- session macro-F1: `0.8222`
+- session confusion matrix:
+
+```text
+[[2, 0, 0],
+ [1, 1, 0],
+ [0, 0, 2]]
+```
+
+解读:
+
+- session-level 指标依旧没有提升
+- window-level 指标相比原始 `Audio R18 + PQ TCN` 明显回落
+- 说明“先冻结 ResNet18 再放开微调”没有减轻 fold1 上的域偏移，反而损失了整体判别能力
+
+### 16.5 当前中断判断
+
+在固定 `audio encoder = ResNet18` 的新约束下，已经连续完成 3 次无提升迭代:
+
+1. 新增事件感知 top-k session aggregation
+2. 新增 class-session balanced sampler
+3. Audio ResNet18 freeze-2 warmup
+
+三轮都没有把核心结果推高到 `0.9407 ± 0.0838` 以上，也没有修掉 `repeat1_fold1` 的关键 `2ml_yumi` 错误。因此按自主迭代规则，在这里暂停继续盲试，等待在人类层面选择更值得投入的下一条路线。
+
+### 16.6 两个备选方向
+
+方向 A:
+
+- 继续保持 `Audio ResNet18`，但把改动从“训练技巧”转到“更强的 PQ 归纳偏置”
+- 建议尝试:
+  - 在 PQ 分支显式加入 pressure / flow 的一阶差分与二阶差分支路
+  - 做双尺度 PQ temporal encoder，再与现有 TCN / CNN-GRU 融合
+  - 目标是提升对短时体积变化边界的灵敏度，而不是继续堆深 encoder
+
+方向 B:
+
+- 保持现有 `Audio ResNet18 + PQ TCN` 主干，转向数据与评价协议层优化
+- 建议尝试:
+  - 改为重叠滑窗，例如 `5 s window + 2.5 s hop`
+  - 引入 session-level hard example mining，专门提高 `2ml_yumi` 这类少量关键窗的权重
+  - 重新设计 session aggregation，使其更偏向“事件存在性”而不是简单多数投票
+
+## 17. 2026-04-01 最终统一证据补实验与文档收尾
+
+为了把最终模型口径彻底统一到同一份 split manifest、同一训练预算和同一份报告中，本轮新增了统一证据配置:
+
+- 配置文件: `configs/final_model_unified_evidence.yaml`
+- 输出目录: `summary-MMmodel/final_model_unified_evidence`
+- split manifest: `summary-MMmodel/pq_vs_multimodal_check/split_manifest.json`
+- 训练预算: `epochs=8`, `early_stop_patience=3`, `batch_size=16`
+- 音频前端: `PCEN96 + HP80`
+- 正式 session aggregation 口径: `majority_voting / mean_probability_pooling / logit_averaging`
+
+### 17.1 本轮做了什么
+
+代码与配置层面:
+
+- 新增最终统一证据配置:
+  - `configs/final_model_unified_evidence.yaml`
+- 继续保留 `weighted_sampler_mode` 与额外 aggregation helper 作为探索工具
+- 但在最终正式口径中，仅保留原始 3 种 session aggregation 参与自动汇总
+
+实验层面:
+
+- 复用完全同设置、同 split 的已有 run:
+  - `pressure_flow_5s`
+  - `hcaf_confgate_residual_pcen96hp80_5s`
+- 新补跑统一口径下此前缺失的实验:
+  - `audio_only_pcen96hp80_5s`
+  - `hcaf_confgate_residual_pcen96hp80_minus_audio_5s`
+  - `hcaf_confgate_residual_pcen96hp80_minus_pressure_5s`
+  - `hcaf_confgate_residual_pcen96hp80_minus_flow_5s`
+  - `hcaf_confgate_residual_pcen96hp80_audio_only_5s`
+
+文档层面:
+
+- 顶层 `README.md`
+- 顶层 `EXPERIMENT_SUMMARY.md`
+- `summary-MMmodel/EXPERIMENT_SUMMARY.md`
+- `summary.md`
+
+都将统一围绕这份最终模型口径和统一证据目录改写。
+
+### 17.2 统一口径主结果
+
+以下主表统一使用 `summary-MMmodel/final_model_unified_evidence` 中的结果:
+
+| Model | Window-level macro-F1 | Session-level macro-F1 | 说明 |
+| --- | --- | --- | --- |
+| `audio_only_pcen96hp80_5s` | `0.7052 ± 0.0667` | `0.8296 ± 0.1362` | 同前端的音频单模态基线 |
+| `pressure_flow_5s` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` | 同 split 的 PQ-only 对照 |
+| `hcaf_confgate_residual_pcen96hp80_5s` | `0.9207 ± 0.0261` | `0.9407 ± 0.0838` | 当前最终多模态模型 |
+
+统一结论:
+
+- 最终多模态模型相对 `audio-only` 的 session macro-F1 提升为 `+0.1111`
+- 最终多模态模型相对 `pressure+flow-only` 的 session macro-F1 提升为 `+0.0889`
+- 因此当前模型已经满足“多模态结果好于单模态 / 传感器双模态参考”的最终要求
+
+### 17.3 缺失模态结果
+
+为避免不同条件各自选择不同聚合方式带来口径漂移，下面的表统一固定使用 `majority_voting`:
+
+| Condition | Session-level macro-F1 | 相对 full 的变化 |
+| --- | --- | --- |
+| Full multimodal | `0.9407 ± 0.0838` | `0.0000` |
+| Missing audio | `0.9407 ± 0.0838` | `0.0000` |
+| Missing pressure | `0.7556 ± 0.2317` | `-0.1852` |
+| Missing flow | `0.9407 ± 0.0838` | `0.0000` |
+| HCAF audio only | `0.8815 ± 0.0838` | `-0.0593` |
+
+这组结果说明:
+
+- 在这份最终 split 下，pressure 是最敏感的单一缺失模态
+- `HCAF audio only` 低于 full model，说明完整多模态仍优于“只保留音频分支”的 HCAF 变体
+- `missing audio` 与 `missing flow` 在 session majority 口径下没有出现均值下降，但其 window-level 表现和表征结构仍已变化，因此更应解读为“当前模型存在冗余路径”，而不是简单得出“这些模态完全不重要”
+
+### 17.4 混淆矩阵与误差结构
+
+最终 full model 的统一口径混淆矩阵为:
+
+窗口级混淆矩阵:
+
+```text
+[[717,  77,   0],
+ [ 67, 978,   0],
+ [  8,  42, 925]]
+```
+
+session 级（majority voting）混淆矩阵:
+
+```text
+[[5, 1, 0],
+ [0, 6, 0],
+ [0, 0, 6]]
+```
+
+仍可保留的误差判断:
+
+- 主错误模式依旧集中在 `0 -> 2`
+- `2 -> 4` 与 `0 -> 4` 不是主要问题
+- 当前最终模型的 recording/session 粒度决策已经非常稳定
+
+### 17.5 最终收尾判断
+
+到本轮为止，已经满足:
+
+- 多模态模型高于单模态音频基线
+- 多模态模型高于 `pressure+flow-only` 参考
+- 缺失模态机制与结果已补齐
+- 混淆矩阵、错误模式、结构说明和统一技术文档都可指向同一最终模型
+
+因此，当前项目可以正式将:
+
+- 最终模型: `hcaf_confgate_residual_pcen96hp80_5s`
+- 最终技术说明: `summary.md`
+- 最终统一证据目录: `summary-MMmodel/final_model_unified_evidence`
+
+作为默认引用口径。
+
+### 17.6 目前剩余风险
+
+- 缺失模态结果对 split 仍然敏感，本轮统一 split 下得到的“pressure 最关键”与旧的另一份 split 上观察到的“flow 更关键”并不完全一致，说明当前样本量下不宜对模态重要性做过强的绝对化结论
+- session 级指标已经很高，但窗口级主要混淆 `0 -> 2` 仍然存在
+- 目前没有事件级时间标注，无法进一步验证边界截断与弱事件覆盖的具体来源
+- `Audio ResNet18` 路线可以追平当前 best，但没有继续超过，因此已归档为探索性分支，不再作为主线继续扩展

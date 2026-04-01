@@ -26,15 +26,18 @@
 
 | model | source | window macro-F1 | session macro-F1 |
 | --- | --- | ---: | ---: |
-| `pressure_flow_5s` | [`summary-MMmodel/pq_vs_multimodal_check`](summary-MMmodel/pq_vs_multimodal_check) | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
-| `hcaf_confgate_residual_5s` | [`summary-MMmodel/pq_vs_multimodal_check`](summary-MMmodel/pq_vs_multimodal_check) | `0.7760 ± 0.0972` | `0.8815 ± 0.0838` |
-| `hcaf_confgate_residual_pcen96hp80_5s` | [`summary-MMmodel/hcaf_confgate_improve_search`](summary-MMmodel/hcaf_confgate_improve_search) | `0.9207 ± 0.0261` | `0.9407 ± 0.0838` |
+| `audio_only_pcen96hp80_5s` | [`summary-MMmodel/final_model_unified_evidence`](summary-MMmodel/final_model_unified_evidence) | `0.7052 ± 0.0667` | `0.8296 ± 0.1362` |
+| `pressure_flow_5s` | [`summary-MMmodel/final_model_unified_evidence`](summary-MMmodel/final_model_unified_evidence) | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
+| `hcaf_confgate_residual_pcen96hp80_5s` | [`summary-MMmodel/final_model_unified_evidence`](summary-MMmodel/final_model_unified_evidence) | `0.9207 ± 0.0261` | `0.9407 ± 0.0838` |
 
 这轮整理后的核心结论很明确:
 
-- 多模态 HCAF 已经稳定超过 `PQ-only`
+- 最终多模态模型在同一 split、同一训练预算下，同时高于 `audio-only` 和 `pressure+flow-only`
+- 相对 `audio-only` 的 session macro-F1 提升为 `+0.1111`
+- 相对 `pressure+flow-only` 的 session macro-F1 提升为 `+0.0889`
 - 真正把最终结果继续推高的关键不是更复杂主干，而是 `PCEN + 96 mel bins + 80 Hz high-pass`
 - `ResNet18 ImageNet`、更大的 PQ 编码器、更多序列模型分支目前都没有超过当前 best
+- 缺失模态鲁棒性现在也已补到与最终模型同一份 split manifest 下，见 [`summary-MMmodel/final_model_unified_evidence`](summary-MMmodel/final_model_unified_evidence)
 
 ## Core Work
 
@@ -45,7 +48,8 @@
 
 2. 保留关键证据链  
    当前推荐引用的主证据链是:
-   - [`summary-MMmodel/pq_vs_multimodal_check`](summary-MMmodel/pq_vs_multimodal_check): 证明多模态已优于 `PQ-only`
+   - [`summary-MMmodel/final_model_unified_evidence`](summary-MMmodel/final_model_unified_evidence): 统一口径下证明最终多模态优于 `audio-only` 与 `pressure+flow-only`，并补齐缺失模态结果
+   - [`summary-MMmodel/pq_vs_multimodal_check`](summary-MMmodel/pq_vs_multimodal_check): 证明上一版 HCAF 首次稳定超过 `PQ-only`
    - [`summary-MMmodel/hcaf_fusion_gate_followup`](summary-MMmodel/hcaf_fusion_gate_followup): 证明收益来自融合机制本身
    - [`summary-MMmodel/hcaf_confgate_improve_search`](summary-MMmodel/hcaf_confgate_improve_search): 证明进一步提升来自 `PCEN96 + HP80`
 
@@ -103,10 +107,13 @@ MMDL/
 4. [`summary-MMmodel/hcaf_confgate_improve_search`](summary-MMmodel/hcaf_confgate_improve_search)  
    当前 best 的直接来源。
 
-5. [`summary-MMmodel/pq_vs_multimodal_check`](summary-MMmodel/pq_vs_multimodal_check)  
-   用来说明“多模态已经超过 PQ-only”的关键对照。
+5. [`summary-MMmodel/final_model_unified_evidence`](summary-MMmodel/final_model_unified_evidence)  
+   用来说明“最终多模态已经同时超过 `audio-only` 与 `pressure+flow-only`，并给出统一 split 下的缺失模态结果”。
 
-6. [`summary-MMmodel/hcaf_fusion_gate_followup`](summary-MMmodel/hcaf_fusion_gate_followup)  
+6. [`summary-MMmodel/pq_vs_multimodal_check`](summary-MMmodel/pq_vs_multimodal_check)  
+   用来说明“上一版 HCAF 首次超过 PQ-only”的关键历史对照。
+
+7. [`summary-MMmodel/hcaf_fusion_gate_followup`](summary-MMmodel/hcaf_fusion_gate_followup)  
    用来说明最终收益来自融合机制和 reliability gate，而不是偶然波动。
 
 ## Key Configs
@@ -115,6 +122,7 @@ MMDL/
 - [`configs/pq_vs_multimodal_check.yaml`](configs/pq_vs_multimodal_check.yaml): `PQ-only vs 多模态` 主对照
 - [`configs/hcaf_fusion_gate_followup.yaml`](configs/hcaf_fusion_gate_followup.yaml): 融合机制补充验证
 - [`configs/hcaf_confgate_improve_search.yaml`](configs/hcaf_confgate_improve_search.yaml): `PCEN96 + HP80` 提升来源
+- [`configs/final_model_unified_evidence.yaml`](configs/final_model_unified_evidence.yaml): 最终统一证据配置，含 `audio-only / pressure+flow-only / final multimodal / missing-modality`
 - [`configs/chapter4_024.yaml`](configs/chapter4_024.yaml): 第四章 `0/2/4` 主实验
 
 ## Environment

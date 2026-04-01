@@ -1,214 +1,139 @@
-# Final Model Technical Summary
+# 最终模型技术说明
 
-## 1. Model Identity
+## 1. 最终模型身份
 
 - final_model: `hcaf_confgate_residual_pcen96hp80_5s`
-- task: `0 / 2 / 4` three-class classification
-- modality: `audio + pressure + flow`
+- task: `0 / 2 / 4` 三分类
+- modalities: `audio + pressure + flow`
 - final_selection_date: `2026-04-01`
-- final_selection_rule: 在与 `PQ-only` 严格同 split 的 grouped CV 下，选取 session-level macro-F1 最高且后续补充搜索未能继续超过的模型
+- final_model_config: `configs/hcaf_confgate_improve_search.yaml`
+- final_evidence_config: `configs/final_model_unified_evidence.yaml`
+- final_evidence_dir: `summary-MMmodel/final_model_unified_evidence`
 
-最终采用的不是“所有实验里最复杂的网络”，而是证据链最完整、最终指标最高、并且后续补充搜索没有再刷新的那一个：
+最终保留的不是参数量最大的模型，也不是最近一次尝试里最复杂的编码器，而是同时满足下面 3 个条件的方案：
 
-| model | source | window macro-F1 | session macro-F1 |
-| --- | --- | ---: | ---: |
-| `pressure_flow_5s` | `summary-MMmodel/pq_vs_multimodal_check` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
-| `hcaf_confgate_residual_5s` | `summary-MMmodel/pq_vs_multimodal_check` | `0.7760 ± 0.0972` | `0.8815 ± 0.0838` |
-| `hcaf_confgate_residual_pcen96hp80_5s` | `summary-MMmodel/hcaf_confgate_improve_search` | `0.9207 ± 0.0261` | `0.9407 ± 0.0838` |
+1. 在正式 grouped CV 下 session-level 指标最高
+2. 后续补充搜索没有继续超过它
+3. 结构、误差模式、缺失模态和单模态对照都能形成完整证据链
 
-## 2. Data And Evaluation Protocol
+## 2. 统一评估协议
 
-- unit_of_split: `session`
-- windowing: `5 s` non-overlapping windows
-- window_hop_sec: `5.0`
-- split: `1 repeat x 3 folds` grouped CV
-- validation: 从 train sessions 内再划出 `25%` 做 early stopping
-- seed: `20260330`
-- excluded_session: `MMdata_265.10s_0322_224132_no_secretion`
-- data_leakage_rule: 先按 session 划分，再切窗
+### 2.1 数据与切分
 
-### 2.1 Input Modalities
+- 数据根目录: `data/`
+- 任务标签: `0 / 2 / 4`
+- 切分单位: `session`
+- 评估方式: `1 repeat x 3 folds` grouped CV
+- 验证集: 从 train sessions 内再划出 `25%`
+- 主窗口长度: `5 s`
+- hop length: `5 s`
+- excluded session:
+  - `MMdata_265.10s_0322_224132_no_secretion`
 
-- audio
-  - source: `audio.wav`
-  - target sample rate: `16000 Hz`
-  - multi-channel handling: 均值混合到单通道
-- pressure
-  - source: `daq.csv -> Pressure (cmH2O)`
-  - target sample rate: `100 Hz`
-- flow
-  - source: `daq.csv -> Flowrate (L/min)`
-  - target sample rate: `100 Hz`
+统一证据使用的 split manifest 为：
 
-### 2.2 Alignment And Window Construction
+- `summary-MMmodel/pq_vs_multimodal_check/split_manifest.json`
 
-数据集会先把三条模态裁到共同有效时长：
+这意味着最终主表、单模态对照和缺失模态分析现在都可以在同一份 split 上解释，不再需要跨不同目录手工拼接。
+
+### 2.2 采样率与模态对齐
+
+- audio sample rate: `16000 Hz`
+- sensor sample rate: `100 Hz`
+- 输入模态:
+  - `audio.wav`
+  - `daq.csv -> Pressure (cmH2O)`
+  - `daq.csv -> Flowrate (L/min)`
+
+每条记录在构建窗口前，都会先裁到三模态共同可覆盖的最短时长：
 
 ```text
 duration_sec = min(audio_duration, pressure_duration, flow_duration)
 ```
 
-然后基于这段公共时长切 `5 s` 窗。这样同一窗口内的音频、pressure、flow 始终时间对齐，不会出现某一模态越界或多出尾部片段的情况。
+然后再切 `5 s` 窗，以避免模态尾部越界和伪对齐。
 
-## 3. Data Flow
+## 3. 最终性能结论
 
-```text
-session
-  -> load audio.wav / daq.csv
-  -> audio resample + mono + z-score
-  -> pressure z-score
-  -> flow z-score
-  -> truncate to common duration
-  -> split into 5 s windows
+### 3.1 多模态 vs 单一模态 / 双模态
 
-for each window:
-  audio window
-    -> high-pass 80 Hz
-    -> Mel spectrogram (96 bins)
-    -> PCEN
-    -> feature standardization
-    -> AudioTokenEncoder
-  pressure window
-    -> 1 x 500 waveform
-    -> SensorTemporalEncoder
-  flow window
-    -> 1 x 500 waveform
-    -> SensorTemporalEncoder
+统一口径下，主结果如下：
 
-three encoded branches
-  -> pressure-flow cross-attention
-  -> sensor token/repr gated fusion
-  -> audio-sensor cross-attention
-  -> lightweight self-attention
-  -> audio expert + sensor expert
-  -> confidence-aware reliability gate
-  -> main classifier
-  -> expert-logit residual add-back
-  -> logits / probabilities
-  -> session aggregation by majority voting
+| model | source | window macro-F1 | session macro-F1 |
+| --- | --- | ---: | ---: |
+| `audio_only_pcen96hp80_5s` | `summary-MMmodel/final_model_unified_evidence` | `0.7052 ± 0.0667` | `0.8296 ± 0.1362` |
+| `pressure_flow_5s` | `summary-MMmodel/final_model_unified_evidence` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
+| `hcaf_confgate_residual_pcen96hp80_5s` | `summary-MMmodel/final_model_unified_evidence` | `0.9207 ± 0.0261` | `0.9407 ± 0.0838` |
+
+因此最终模型相对基线的 session-level 提升为：
+
+- vs `audio-only`: `+0.1111`
+- vs `pressure+flow-only`: `+0.0889`
+
+这一点满足“多模态结果好于单模态 / 传感器双模态参考”的最终目标。
+
+![统一主结果对比](summary-MMmodel/final_model_unified_evidence/model_comparison.png)
+
+### 3.2 缺失模态结果
+
+为避免不同条件各自选择不同聚合方法带来解释偏差，下面统一固定使用 `majority_voting`：
+
+| condition | session macro-F1 | delta vs full |
+| --- | ---: | ---: |
+| full multimodal | `0.9407 ± 0.0838` | `0.0000` |
+| missing audio | `0.9407 ± 0.0838` | `0.0000` |
+| missing pressure | `0.7556 ± 0.2317` | `-0.1852` |
+| missing flow | `0.9407 ± 0.0838` | `0.0000` |
+| HCAF audio only | `0.8815 ± 0.0838` | `-0.0593` |
+
+解释时需要注意两点：
+
+1. 这张表的价值是说明“缺失模态时系统如何退化或保持”，不是用来替代主表的模型选择逻辑。
+2. 在当前统一 split 下，`missing audio` 和 `missing flow` 的 session majority 均值没有下降，但它们的 window-level 表现和内部表示已经变化，因此更合理的解读是“当前模型存在冗余路径”，而不是“这些模态没有价值”。
+
+最终仍保留 full multimodal 作为正式模型，而不是直接改成 `missing audio` 或 `missing flow` 版本，原因是：
+
+- 这些缺失模态设置本质上属于鲁棒性分析条件，不是主模型候选
+- full multimodal 保留了最完整的输入信息
+- full multimodal 仍然对应最完整的结构解释链、音频前端提升证据和主表叙述口径
+
+![缺失模态对比](summary-MMmodel/final_model_unified_evidence/ablation_results.png)
+
+## 4. 模型结构
+
+### 4.1 整体数据流
+
+```mermaid
+flowchart LR
+    A[session] --> B[load audio.wav]
+    A --> C[load daq.csv]
+    B --> D[mono + resample 16 kHz]
+    C --> E[pressure / flow z-score]
+    D --> F[HP80 + 96-mel + PCEN]
+    F --> G[AudioTokenEncoder]
+    E --> H[Pressure SensorTemporalEncoder]
+    E --> I[Flow SensorTemporalEncoder]
+    H --> J[pressure-flow cross-attention]
+    I --> J
+    J --> K[sensor token / repr gated fusion]
+    G --> L[audio-sensor cross-attention]
+    K --> L
+    L --> M[lightweight self-attention]
+    M --> N[audio expert + sensor expert]
+    N --> O[confidence-aware reliability gate]
+    O --> P[main classifier]
+    P --> Q[expert residual add-back]
+    Q --> R[window logits]
+    R --> S[session aggregation]
 ```
 
-## 4. Audio Frontend
+### 4.2 编码器与融合模块
 
-最终模型真正刷新的关键不在更大的 encoder，而在音频前端：
+#### 4.2.1 PQ波形编码器结构
 
-- feature_type: `pcen`
-- n_mels: `96`
-- f_min: `80.0`
-- f_max: `6000.0`
-- highpass_hz: `80.0`
-- n_fft: `1024`
-- win_length: `400`
-- hop_length: `160`
+PQ 编码器对应 `mmdl_baseline/models/sensor_cnn.py` 中的 `SensorTemporalEncoder(encoder_type="tcn")`，pressure 与 flow 各使用一套同构分支。
 
-### 4.1 Why `PCEN96 + HP80`
-
-- `PCEN96 + HP80` 把 session macro-F1 从 `0.8815` 提升到 `0.9407`
-- 仅做 `LP300` 会回落到 `0.8815`
-- `BP80-300` 进一步回落到 `0.8259`
-
-这说明：
-
-- `80 Hz` 以下的超低频成分更像漂移、基线扰动或接触噪声，去掉有帮助
-- `300 Hz` 以上并不是纯噪声，仍包含对分类有用的信息
-
-## 5. Architecture
-
-模型主体是 `HCAFNet`，核心实现位于 `mmdl_baseline/models/multimodal.py`。
-
-### 5.1 Branch Encoders
-
-- audio branch
-  - `AudioTokenEncoder`
-  - encoder type: `basic`
-  - 主干共有 `3` 个卷积块
-  - 输出 `audio_token_frames=12` 个 token
-  - 同时输出一个 summary vector
-- pressure branch
-  - `SensorTemporalEncoder`
-  - encoder type: `tcn`
-  - 由 `3` 层 1D CNN stem + `2` 层 TCN block 组成
-  - 输出 `sensor_token_length=16` 个 token
-  - 同时输出一个 summary vector
-- flow branch
-  - 与 pressure branch 同构
-
-### 5.1.1 Audio Encoder Detail
-
-当前最终模型的 audio encoder 不是 ResNet，而是 `AudioTokenEncoder(encoder_type="basic")`。输入是标准化后的音频时频图，shape 可以写成：
-
-```text
-[B, 1, 96, T]
-```
-
-其中：
-
-- `B` 是 batch size
-- `1` 是单通道时频图
-- `96` 是 Mel bins
-- `T` 是时间帧数，`5 s` 窗下由 `hop_length=160` 决定
-
-其 backbone 共有 `3` 个 2D 卷积块，每个块的结构都相同：
-
-```text
-Conv2d(kernel=3x3, padding=1)
--> BatchNorm2d
--> GELU
--> MaxPool2d(kernel=2)
-```
-
-具体通道变化为：
-
-1. Block 1
-   - `1 -> 16`
-2. Block 2
-   - `16 -> 32`
-3. Block 3
-   - `32 -> 64`
-
-所以 audio encoder 的主干可以概括成：
-
-```text
-[B, 1, 96, T]
--> Conv-BN-GELU-Pool
--> Conv-BN-GELU-Pool
--> Conv-BN-GELU-Pool
--> [B, 64, F', T']
-```
-
-在得到 backbone feature map 后，模型再分成两条支路：
-
-1. token branch
-   - `AdaptiveAvgPool2d((1, 12))`
-   - 把频率维压成 `1`，把时间维压成固定 `12` 帧
-   - 得到 `[B, 64, 1, 12]`
-   - `squeeze` 后变成 `[B, 64, 12]`
-   - 再过一个 `1x1 Conv1d(64 -> 128)` 做 token projection
-   - 最终得到 audio tokens:
-
-```text
-[B, 12, 128]
-```
-
-2. summary branch
-   - `AdaptiveAvgPool2d((1, 1))`
-   - `Flatten`
-   - `Linear(64 -> 128)`
-   - `GELU`
-   - 最终得到 audio summary:
-
-```text
-[B, 128]
-```
-
-因此，audio 分支最终输出的是：
-
-- `12` 个 audio tokens
-- `1` 个 `128` 维 audio summary vector
-
-### 5.1.2 PQ Encoder Detail
-
-pressure 和 flow 使用同构的 `SensorTemporalEncoder(encoder_type="tcn")`。每条传感器输入都是：
+输入形状：
 
 ```text
 [B, 1, 500]
@@ -216,57 +141,33 @@ pressure 和 flow 使用同构的 `SensorTemporalEncoder(encoder_type="tcn")`。
 
 因为：
 
-- 传感器采样率是 `100 Hz`
-- 窗长是 `5 s`
-- 所以每窗长度为 `500` 个采样点
+- 传感器采样率为 `100 Hz`
+- 窗长为 `5 s`
+- 每窗共有 `500` 个采样点
 
-每个 PQ encoder 可以拆成两部分：
+结构分为两部分：
 
-1. CNN stem
-2. temporal backbone (`2` 层 TCN)
+1. `1D CNN stem`
+2. `TCN temporal backbone`
 
-#### CNN stem
-
-stem 一共有 `3` 层 1D 卷积：
-
-1. Conv1d layer 1
-   - `1 -> 16`
-   - `kernel_size=9`
-   - `stride=1`
-   - `padding=4`
-   - 后接 `BatchNorm1d + GELU`
-2. Conv1d layer 2
-   - `16 -> 32`
-   - `kernel_size=5`
-   - `stride=2`
-   - `padding=2`
-   - 后接 `BatchNorm1d + GELU`
-3. Conv1d layer 3
-   - `32 -> 64`
-   - `kernel_size=5`
-   - `stride=2`
-   - `padding=2`
-   - 后接 `BatchNorm1d + GELU`
-
-所以 stem 的作用是：
-
-- 先把单通道传感器波形映射到 `64` 个通道
-- 再通过两次 stride=2 做时间降采样
-
-得到的中间特征可写成：
+`1D CNN stem` 为 3 层卷积：
 
 ```text
-[B, 64, L']
+Conv1d(1 -> 16, kernel=9, stride=1, padding=4)
+-> BatchNorm1d
+-> GELU
+-> Conv1d(16 -> 32, kernel=5, stride=2, padding=2)
+-> BatchNorm1d
+-> GELU
+-> Conv1d(32 -> 64, kernel=5, stride=2, padding=2)
+-> BatchNorm1d
+-> GELU
 ```
 
-#### TCN backbone
+`TCN backbone` 使用 `tcn_layers=2`，即 2 个 dilation TCN block：
 
-当前最终模型里 `tcn_layers=2`，所以 temporal backbone 有 `2` 个 TCN block：
-
-1. TCN block 1
-   - dilation=`1`
-2. TCN block 2
-   - dilation=`2`
+- block 1: dilation=`1`
+- block 2: dilation=`2`
 
 每个 TCN block 内部都是：
 
@@ -282,25 +183,12 @@ Conv1d(64 -> 64, kernel=3, dilation=d, padding=d)
 -> Dropout
 ```
 
-也就是说，单个传感器 encoder 的时序主干共有：
-
-- `3` 层 stem Conv1d
-- `2` 个 TCN block
-- 每个 TCN block 含 `2` 层 dilated Conv1d
-
-若按卷积层数来数，相当于每个 PQ encoder 总共有：
-
-- stem `3` 层卷积
-- TCN `4` 层卷积
-- 合计 `7` 层一维卷积
-
-在时序 backbone 之后，同样分成两条支路：
+时序主干之后，PQ 分支会导出两种表示：
 
 1. token branch
    - `AdaptiveAvgPool1d(16)`
-   - 把时间维压成固定 `16` 个位置
    - `Conv1d(64 -> 128, kernel=1)`
-   - 转置后得到：
+   - 输出：
 
 ```text
 [B, 16, 128]
@@ -308,88 +196,142 @@ Conv1d(64 -> 64, kernel=3, dilation=d, padding=d)
 
 2. summary branch
    - `AdaptiveAvgPool1d(1)`
-   - `Flatten`
    - `Linear(64 -> 128)`
    - `GELU`
-   - 得到：
+   - 输出：
 
 ```text
 [B, 128]
 ```
 
-所以 pressure encoder 和 flow encoder 各自都会输出：
+因此每条 PQ 分支最终都会输出：
 
-- `16` 个 sensor tokens
+- `16` 个 token
 - `1` 个 `128` 维 summary vector
 
-### 5.2 Fusion Order
+#### 4.2.2 呼吸音编码器结构
 
-先做 `pressure <-> flow`，再做 `audio <-> sensor`，不是三路直接拼接。
+呼吸音分支使用 `AudioTokenEncoder(encoder_type="basic")`，输入不是原始波形，而是经过 `PCEN96 + HP80` 处理后的单通道时频图。
 
-1. `pressure_to_flow` 与 `flow_to_pressure` cross-attention
-2. `MaskedTokenGate` 融合 pressure/flow token 与 repr
-3. `audio_to_sensor` 与 `sensor_to_audio` cross-attention
-4. 拼接 joint tokens
-5. `self_attention_layers=1` 做轻量 self-attention
+音频前端参数：
 
-### 5.3 Confidence-Aware Gate
+- feature_type: `pcen`
+- n_mels: `96`
+- f_min: `80.0`
+- f_max: `6000.0`
+- highpass_hz: `80.0`
+- n_fft: `1024`
+- win_length: `400`
+- hop_length: `160`
 
-最终门控不只看表征本身，还看两路 expert 的置信度特征：
+输入形状可写为：
+
+```text
+[B, 1, 96, T]
+```
+
+主干由 3 个 2D CNN block 组成：
+
+```text
+Conv2d(kernel=3x3, padding=1)
+-> BatchNorm2d
+-> GELU
+-> MaxPool2d(kernel=2)
+```
+
+通道变化为：
+
+1. `1 -> 16`
+2. `16 -> 32`
+3. `32 -> 64`
+
+输出同样分为两条支路：
+
+1. token branch
+   - `AdaptiveAvgPool2d((1, 12))`
+   - `Conv1d(64 -> 128, kernel=1)`
+   - 输出：
+
+```text
+[B, 12, 128]
+```
+
+2. summary branch
+   - `AdaptiveAvgPool2d((1, 1))`
+   - `Linear(64 -> 128)`
+   - `GELU`
+   - 输出：
+
+```text
+[B, 128]
+```
+
+最终音频分支输出：
+
+- `12` 个 audio tokens
+- `1` 个 `128` 维 audio summary
+
+#### 4.2.3 融合结构设计
+
+最终模型使用的是 `HCAFNet`，其融合顺序不是“三路直接拼接”，而是分层进行：
+
+1. `pressure -> flow` 与 `flow -> pressure` 双向 cross-attention
+2. `sensor_token_fusion` 与 `sensor_repr_fusion`
+3. `audio -> sensor` 与 `sensor -> audio` 双向 cross-attention
+4. `joint_tokens` 过 `1` 层 lightweight self-attention
+5. 得到 `audio_repr` 与 `sensor_repr`
+6. 用两路 expert 先分别产生 `audio_logits` 与 `sensor_logits`
+7. 通过 `confidence-aware reliability gate` 输出两路权重
+8. 主分类头输出 logits，再叠加 `expert residual`
+
+可靠性门控使用了 3 类置信度特征：
 
 - top-1 probability
 - top-1 / top-2 margin
-- normalized `1 - entropy`
+- `1 - entropy`
 
-门控输出两路权重：
+门控公式可写为：
 
 ```text
-weights = [audio_weight, sensor_weight]
-fused_repr = audio_weight * audio_repr + sensor_weight * sensor_repr
+fused_repr = w_audio * audio_repr + w_sensor * sensor_repr
 ```
 
-### 5.4 Expert Residual
-
-主分类头先基于 `fused_repr` 给出 logits，然后再把两路 expert logits 按门控权重加权，并以 `0.3` 的比例回加：
+最终 logits 为：
 
 ```text
 final_logits =
     classifier(fused_repr)
-    + 0.3 * (audio_weight * audio_logits + sensor_weight * sensor_logits)
+    + 0.3 * (w_audio * audio_logits + w_sensor * sensor_logits)
 ```
 
-这是最终模型与普通 HCAF 的关键差异之一。
+这也是最终模型与普通 HCAF 变体相比最关键的区别之一：
 
-## 6. Structural Adjustments That Mattered
+- `confidence-aware gate`
+- `expert residual`
 
-### 6.1 Sensor Normalization Fix
+两者配合后，才形成了稳定且可复现的多模态收益。
 
-早期版本里 pressure / flow 分支会复用 audio 的 `LayerNorm`。修复后：
+## 5. 关键结构调整
 
-- `hcaf_legacy_sharednorm_5s`: window macro-F1=`0.7919`
-- `hcaf_normfix_5s`: window macro-F1=`0.8728`
+### 5.1 Sensor normalization fix
 
-这一步先解决“表示空间本身不稳”的问题。
+早期版本中，pressure / flow 分支会复用 audio 的 `LayerNorm`。修复后，多模态结构才具备稳定的表示空间。
 
-### 6.2 Confidence Gate Alone Is Not Enough
+### 5.2 confidence-aware gate + expert residual
 
-- `hcaf_confgate_5s`: session macro-F1=`0.6857`
+单独使用 `confidence-aware gate` 并不能稳定提升，只有和 `expert residual` 联合后，session-level 性能才第一次稳定超过传感器双模态参考。
 
-单独上 confidence-aware gate 会显著退化，说明小数据下 gate 会过早放大单模态偏差。
+### 5.3 音频前端升级
 
-### 6.3 Confidence Gate + Expert Residual Works
+真正把最终指标从上一版 best 再推高的是：
 
-- `hcaf_confgate_residual_5s`: session macro-F1=`0.8815`
+- `PCEN`
+- `96 mel bins`
+- `80 Hz high-pass`
 
-加入 expert residual 后，模型不再完全依赖单一门控决策，融合更稳定，也首次稳定超过 PQ-only。
+而不是继续堆更深的 encoder。
 
-### 6.4 Audio Frontend Upgrade Gives The Final Jump
-
-- `hcaf_confgate_residual_base_5s`: session macro-F1=`0.8815`
-- `hcaf_confgate_residual_pcen96hp80_5s`: session macro-F1=`0.9407`
-
-最终刷新来自前端，而不是换大 backbone。
-
-## 7. Training Hyperparameters
+## 6. 训练超参数
 
 - optimizer: `Adam`
 - learning_rate: `1e-3`
@@ -410,70 +352,125 @@ final_logits =
 - sensor_token_length: `16`
 - self_attention_layers: `1`
 
-## 8. What Was Tried But Not Kept
+## 7. 指标分析
 
-### 8.1 Filter Variants
+### 7.1 为什么最终模型是当前最优口径
 
-- `PCEN96 + LP300`: session macro-F1=`0.8815`
-- `PCEN96 + BP80-300`: session macro-F1=`0.8259`
+统一证据已经表明：
 
-### 8.2 Architecture / Training Budget Variants
+- full multimodal > `audio-only`
+- full multimodal > `pressure+flow-only`
+- full multimodal > `HCAF audio only`
 
-这些都没有超过当前 best：
+也就是说，最终模型既不是“纯音频已经足够”，也不是“传感器双模态已经足够”，而是三模态与层次融合结构共同作用后的结果。
 
-- batch size `8`
-- batch size `32`
-- shorter attention tokens
-- longer attention tokens + deeper self-attention
-- audio/sensor `ResNet18`
-- audio/sensor `ResNet34`
+### 7.2 缺失模态怎么处理
 
-### 8.3 ResNet18 Transfer Learning
+模型原生支持缺失模态，不需要另起一个新架构。
 
-- `ResNet18 scratch`: session macro-F1=`0.8222`
-- `ResNet18 + ImageNet init`: session macro-F1=`0.9407`
+实现机制有两层：
 
-迁移学习有效，但只是追平当前 best，不是新的最佳方案。
+1. `enabled_modalities`
+   - 显式指定某次实验可用的模态集合
+2. `modality_dropout`
+   - 训练时随机 mask 掉一部分模态
+   - 正式最终模型使用 `modality_dropout = 0.1`
 
-### 8.4 2026-04-01 Additional Checks
+在 `HCAFNet` 内部：
 
-为了继续验证还能否刷结果，额外跑了两轮聚焦实验：
+- 每个 batch 会采样 `audio_mask / pressure_mask / flow_mask`
+- 被 mask 的 token 和 summary 会直接乘零
+- cross-attention、token fusion、reliability gate 会继续接收 availability mask
+- 如果训练时所有模态都被 mask，代码会强制保留至少一个模态，避免空输入
 
-- `modality_dropout=0.0`
-  - fold1: window macro-F1=`0.8344`, session macro-F1=`0.8222`
-  - 结论: 无法严格超过当前 best，提前停止
-- `focal loss (gamma=1.5)`
-  - fold1: window macro-F1=`0.8213`, session macro-F1=`0.8222`
-  - 结论: 同样无法严格超过当前 best，提前停止
+因此这里的“缺失模态处理”不是后处理技巧，而是结构级支持。
 
-## 9. Interpretation Signals
+### 7.3 混淆矩阵与错误模式
 
-来自 `summary-MMmodel/hcaf_confgate_interpretability/report.md` 的关键证据：
+最终模型在统一口径下的混淆矩阵为：
 
-- audio gate 与 audio expert top-1 confidence 相关系数: `0.695`
-- sensor gate 与 sensor expert top-1 confidence 相关系数: `0.373`
-- 最主要窗口级混淆: `0 -> 2`
-- 边界窗口错误率: `0.0878`
-- 中段窗口错误率: `0.0563`
+窗口级：
 
-类别层面的 gate 倾向也很明显：
+```text
+[[717,  77,   0],
+ [ 67, 978,   0],
+ [  8,  42, 925]]
+```
 
-- class `0`: 平均 audio gate=`0.0446`
-- class `2`: 平均 audio gate=`0.1090`
-- class `4`: 平均 audio gate=`0.6218`
+session 级（majority voting）：
 
-这意味着模型并不是机械地平均三模态，而是在不同类别上学出了不同的模态依赖模式。
+```text
+[[5, 1, 0],
+ [0, 6, 0],
+ [0, 0, 6]]
+```
 
-## 10. Risks And Remaining Limits
+可保留的误差判断：
 
-- 数据量仍小，`3 folds` 下 session 数有限，单折波动仍然存在
-- 主要错误仍集中在 `0 -> 2` 边界样本
-- `5 s` 固定窗存在边界效应，缺少逐事件起止标注时无法进一步对齐
-- 缺失模态鲁棒性分析使用的是另一份 split manifest，因此更适合作为鲁棒性证据，而不是主表替代
-- 当前模型已经明显优于 PQ-only，但优势更像“稳定提升”而不是大幅碾压
+- 主错误模式依然是 `0 -> 2`
+- `2 -> 4` 不是主要混淆来源
+- session-level 只剩 `1` 个 `0 -> 2` 错误
 
-## 11. Recommended Citation Form
+![最终模型窗口级混淆矩阵](summary-MMmodel/final_model_unified_evidence/hcaf_confgate_residual_pcen96hp80_5s_window_confusion_matrix_sum.png)
 
-可直接用于论文或答辩说明：
+![最终模型 session 级混淆矩阵](summary-MMmodel/final_model_unified_evidence/hcaf_confgate_residual_pcen96hp80_5s_majority_voting_session_confusion_matrix_sum.png)
 
-> 在固定 `5 s` 窗口、相同 session-level grouped CV 划分和相同训练预算下，最终多模态模型 `hcaf_confgate_residual_pcen96hp80_5s` 的 session-level macro-F1 达到 `0.9407 ± 0.0838`，高于 `pressure_flow-only` 的 `0.8519 ± 0.2095`。结果表明，多模态增益并不会由普通融合自动产生，而是依赖于 sensor normalization 修复、`confidence-aware gate + expert residual` 的稳定融合，以及 `PCEN96 + high-pass 80 Hz` 音频前端的共同作用。
+### 7.4 gate 与跨模态交互的解释证据
+
+最终模型还保留了一组解释性结果：
+
+- cross-attention 热图
+- audio gate 按类别统计
+- gate 与 expert confidence 的关系
+- 边界位置错误率
+
+对应目录：
+
+- `summary-MMmodel/hcaf_confgate_interpretability`
+
+可直接引用的图包括：
+
+![cross-attention 示例](summary-MMmodel/hcaf_confgate_interpretability/attention_examples.png)
+
+![audio gate by class](summary-MMmodel/hcaf_confgate_interpretability/audio_gate_by_class.png)
+
+![error rate by position](summary-MMmodel/hcaf_confgate_interpretability/error_rate_by_position.png)
+
+## 8. 为什么没有继续选更复杂的编码器
+
+后续补充搜索已经覆盖了：
+
+- `Audio ResNet18`
+- 更复杂 PQ encoder
+- 更大 batch size
+- 更长 / 更短 attention token
+- 额外 loss / modality dropout 调整
+
+结论是：
+
+- `Audio ResNet18` 可以追平当前 best，但没有继续超过
+- 更复杂 PQ encoder 没有稳定涨点
+- 继续堆大 backbone 只会增加说明成本，不会增加最终证据强度
+
+因此最终保留的，仍然是当前这条：
+
+- `basic audio token encoder`
+- `PQ TCN encoder`
+- `confidence-aware gate + expert residual`
+- `PCEN96 + HP80`
+
+## 9. 仍然存在的风险
+
+- 缺失模态的重要性对 split 仍然敏感
+  - 旧的一份 split 上，更像是 flow 更关键
+  - 本轮统一 split 下，pressure removal 的退化最大
+  - 因此不适合把“哪一个模态绝对最重要”写成过强结论
+- 窗口级 `0 -> 2` 混淆仍然存在
+- 当前没有事件级标注，无法进一步验证边界截断造成的局部错误
+- 虽然 session-level 已很高，但样本规模仍有限，折间方差不可完全忽略
+
+## 10. 建议引用表述
+
+可以直接用于论文、答辩或技术汇报：
+
+> 在统一的 session-grouped `1 repeat x 3 folds` 评估协议下，最终多模态模型 `hcaf_confgate_residual_pcen96hp80_5s` 的 session-level macro-F1 达到 `0.9407 ± 0.0838`。在完全相同的 split manifest 与训练预算下，该结果高于 `audio-only PCEN96 HP80` 的 `0.8296 ± 0.1362`，也高于 `pressure+flow-only` 的 `0.8519 ± 0.2095`。结果表明，最终性能的提升来自 `PCEN96 + HP80` 音频前端与 `confidence-aware gate + expert residual` 层次融合结构的共同作用，而不是单一模态或更大编码器自然带来的增益。
