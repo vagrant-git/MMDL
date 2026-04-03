@@ -2,8 +2,8 @@
 
 ## 1. 本章采用的结果口径
 
-- 本章当前默认口径统一围绕压缩后的最佳多模态模型 `HCAF-PCEN-DualXAttn` 展开，其对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。
-- 其中 `hcaf_confgate_residual_5s` 作为上一版 best，用于说明融合结构本身已经优于普通多模态；`hcaf_confgate_residual_pcen96hp80_5s` 是完整结构版最终模型；`hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` 则是在同一 HCAF 主干上进一步吸收补充压缩实验结论后确定的当前默认最佳模型。
+- 本章当前默认口径统一围绕当前默认多模态模型 `HCAF-PCEN-DualXAttn` 展开，其对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。
+- 其中 `hcaf_confgate_residual_5s` 作为上一版 best，用于说明融合结构本身已经优于普通多模态；`hcaf_confgate_residual_pcen96hp80_5s` 是完整结构版最终模型；`hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` 则是在同一 HCAF 主干上进一步吸收补充结构裁剪实验结论后确定的当前默认最佳模型。
 - 所有实验均采用 `0 / 2 / 4` 三分类任务，且遵循先按 `session` 分组、再切 `5 s` 窗口的 grouped CV 原则，避免窗口泄漏。
 - 主结果、机制消融、缺失模态鲁棒性分别来自三组独立配置；引用时应按各自配置内的对比关系解读，不跨不同轮次混用数值。
 
@@ -238,6 +238,59 @@ pressure 和 flow 的处理路径是并行且对称的。
 - 输出目录: `summary-MMmodel/pq_vs_multimodal_check`
 - split manifest: `summary-MMmodel/pq_vs_multimodal_check/split_manifest.json`
 - seed: `20260330`
+
+## 4. 2026-04-03 本轮迭代: 去掉 expert residual 对最终 logits 的影响
+
+- 本轮目标: 保留 `confidence_aware_gate` 依赖的 expert 头与 confidence 特征，但移除 expert logits 对最终分类 logits 的 residual 回加，单独评估 reliability gate 本身是否已经足够。
+- 代码改动:
+  - `mmdl_baseline/models/multimodal.py`
+  - `HCAFNet.forward()` 中不再执行 `logits + expert_residual_scale * expert_logits`
+- 配置改动:
+  - `configs/final_model_unified_evidence.yaml` 中当前默认多模态模型的 `expert_residual_scale` 由 `0.3` 调整为 `0.0`
+- 预期影响:
+  - 最终输出完全来自融合主分类器
+  - gate 仍然可以使用 `audio_expert logits / sensor_expert logits` 生成 confidence feature
+  - 可以直接判断此前增益究竟来自 confidence-aware gating，还是来自 expert residual 的 logit shortcut
+- 执行验证:
+  - 已在 `dl` 环境下运行 `conda run -n dl python summary_mmmodel_experiments.py --config configs/final_model_unified_evidence.yaml`
+  - 当前主模型 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` 在去掉 residual 后，window-level macro-F1 为 `0.8225 ± 0.1681`，best session macro-F1 为 `0.8148 ± 0.2619`
+  - 对照基线:
+    - `audio_only_pcen96hp80_5s`: session macro-F1 `0.8296 ± 0.1362`
+    - `pressure_flow_5s`: session macro-F1 `0.8519 ± 0.2095`
+  - 结论: 去掉 expert residual 后，当前默认多模态模型不再稳定优于单模态与 PQ-only，说明此前可复现的增益并不只来自 `confidence-aware gate`，`expert residual` 本身仍然是关键机制之一
+- 下一步:
+  - 当前分支不应替换原默认模型；若继续做结构裁剪，应优先尝试更温和的 residual 弱化方式，例如缩小 `expert_residual_scale`，而不是直接完全移除
+
+## 5. 2026-04-03 本轮迭代: 在当前默认主干上将 PCEN 替换为 log-Mel
+
+- 本轮目标: 保持当前 `SA=0 + no-summary + no expert residual` 主干与 grouped CV split 不变，仅将音频前端从 `PCEN96 + HP80` 替换为 `log-Mel 96`，判断前端本身能否缓解去掉 residual 后的性能回落。
+- 配置文件:
+  - `configs/final_model_logmel_only.yaml`
+- 关键改动:
+  - `audio_frontend.feature_type: logmel`
+  - `audio_frontend.n_mels: 96`
+  - `audio_frontend.f_min: 80.0`
+  - `audio_frontend.f_max: 6000.0`
+  - `audio_frontend.highpass_hz: null`
+- 执行计划:
+  - 在 `dl` 环境下运行 `conda run -n dl python summary_mmmodel_experiments.py --config configs/final_model_logmel_only.yaml`
+  - 跑完后与当前 `final_model_unified_evidence` 中的 `PCEN96 + HP80` 版本直接比较 window/session macro-F1
+- 执行结果:
+  - 已完成 `conda run -n dl python summary_mmmodel_experiments.py --config configs/final_model_logmel_only.yaml`
+  - `HCAF-LogMel96-DualXAttn`:
+    - window-level macro-F1: `0.7973 ± 0.0614`
+    - best session macro-F1: `0.7926 ± 0.1826`
+    - best session accuracy: `0.8333 ± 0.1361`
+  - 当前对照的 `PCEN96 + HP80` 版本 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`:
+    - window-level macro-F1: `0.8225 ± 0.1681`
+    - best session macro-F1: `0.8148 ± 0.2619`
+    - best session accuracy: `0.8333 ± 0.2357`
+  - 差值 (`log-Mel - PCEN`):
+    - window-level macro-F1: `-0.0252`
+    - session macro-F1: `-0.0222`
+- 结论:
+  - 在当前已经去掉 `expert residual` 的默认主干上，把 `PCEN96 + HP80` 改成 `log-Mel 96` 并不能修复性能下降，反而会进一步小幅退化
+  - 因此，当前问题不在于 `PCEN` 前端本身；更大的性能损失仍然主要来自去掉 `expert residual`
 
 ## 4. 2026-04-02 消融补充：一次 cross-attention vs 两次 cross-attention
 
@@ -2066,17 +2119,17 @@ conda run -n dl python analyze_breath_cycles.py
 
 原因是:
 
-- 这条路线在当前已完成压缩消融里保留了最核心的结构:
+- 这条路线在当前已完成结构裁剪消融里保留了最核心的结构:
   - `PCEN96 + HP80`
   - `Pressure-Flow` 内部交互 + `audio-sensor` 双阶段 cross-attention
   - `confidence-aware gate + expert residual`
-- 并且其窗口级结果高于同轮的 `SA0 base`、`summary token` 与 `PCEN64` 压缩候选
+- 并且其窗口级结果高于同轮的 `SA0 base`、`summary token` 与 `PCEN64` 候选
 
 因此后续若没有再次刷出更强结果，当前仓库默认说明都应围绕 `HCAF-PCEN-DualXAttn` 展开，而长实验名仅保留在配置和复现实验的位置。
 
-## 24. 2026-04-02 压缩导向消融：围绕当前最终 HCAF 主线裁剪冗余模块
+## 24. 2026-04-02 结构裁剪消融：围绕当前最终 HCAF 主线裁剪冗余模块
 
-为了把最终模型进一步压缩，同时尽量守住 `window-level` 指标，又额外做了一轮面向当前最终 HCAF 主线的压缩导向消融。与前面 `audioresnet_xattn` 路线的结构探索不同，这一轮统一基于当前最终模型口径展开：
+为了进一步裁剪最终模型中的冗余结构，同时尽量守住 `window-level` 指标，又额外做了一轮面向当前最终 HCAF 主线的结构裁剪消融。与前面 `audioresnet_xattn` 路线的结构探索不同，这一轮统一基于当前最终模型口径展开：
 
 - 主线模型: `hcaf_confgate_residual_pcen96hp80_5s`
 - grouped CV: `1 x 3 folds`
@@ -2094,9 +2147,9 @@ conda run -n dl python analyze_breath_cycles.py
    - 观察去掉滤波是否会明显掉点
 3. 其它推理冗余
    - 继续保留此前已经确认的 `self_attention_layers = 0`
-   - 并在代码中补上了“若既不用 confidence-aware gate 也不用 expert residual，则跳过 expert heads”的实现，便于后续进一步压缩
+   - 并在代码中补上了“若既不用 confidence-aware gate 也不用 expert residual，则跳过 expert heads”的实现，便于后续继续做结构裁剪
 
-### 24.1 已完整跑完的压缩候选
+### 24.1 已完整跑完的结构候选
 
 以下四组已经完整跑完三折：
 
@@ -2105,36 +2158,36 @@ conda run -n dl python analyze_breath_cycles.py
 | `hcaf_comp_sa0_base_5s` | `0.8968` | `0.0495` | `0.8815` | 仅去掉 joint self-attention |
 | `hcaf_comp_sa0_no_summary_5s` | `0.9155` | `0.0133` | `0.9407` | 去掉 `summary` 残差表示 |
 | `hcaf_comp_sa0_summary_token_5s` | `0.8298` | `0.0805` | `0.8815` | `summary` 送入 attention |
-| `hcaf_comp_sa0_pcen64_hp80_5s` | `0.8773` | `0.0458` | `0.8815` | 将 `PCEN96` 压缩为 `PCEN64` |
+| `hcaf_comp_sa0_pcen64_hp80_5s` | `0.8773` | `0.0458` | `0.8815` | 将 `PCEN96` 调整为 `PCEN64` |
 
 直接结论如下：
 
 - 仅去掉 concat 后的 joint self-attention 后，window-level macro-F1 为 `0.8968`，仍处于可用区间，但比完整历史最优 `0.9207` 有可见回落。
 - 在此基础上进一步去掉表示层中的 `summary` 残差后，结果反而回升到 `0.9155 ± 0.0133`，不仅均值更高，而且方差显著缩小。
-- 把 `summary` 直接送入 cross-attention 后，三折测试出现了 `0.7176 / 0.9030 / 0.8687` 的高波动模式，均值只有 `0.8298`，不适合作为默认压缩方案。
-- 将音频前端从 `PCEN96` 直接减到 `PCEN64` 也会带来较明显回落，均值只有 `0.8773`，说明这一步压缩对当前最终模型而言过于激进。
+- 把 `summary` 直接送入 cross-attention 后，三折测试出现了 `0.7176 / 0.9030 / 0.8687` 的高波动模式，均值只有 `0.8298`，不适合作为当前默认结构。
+- 将音频前端从 `PCEN96` 直接减到 `PCEN64` 也会带来较明显回落，均值只有 `0.8773`，说明这一步结构简化对当前最终模型而言过于激进。
 
-### 24.2 本轮压缩搜索得到的推荐压缩版
+### 24.2 本轮结构搜索得到的推荐默认结构
 
-对当前最终 HCAF 主线而言，最值得保留的压缩操作不是“让 `summary` 进入 attention”，而是：
+对当前最终 HCAF 主线而言，最值得保留的结构调整不是“让 `summary` 进入 attention”，而是：
 
 - `self_attention_layers = 0`
 - `use_summary_in_repr = false`
 - 保留 `PCEN96 + HP80`
 - 保留 `confidence-aware gate + expert residual`
 
-也就是说，当前最合理的压缩策略不是同时大改前端和门控，而是先裁掉已经被证实相对冗余的两处：
+也就是说，当前最合理的结构简化策略不是同时大改前端和门控，而是先裁掉已经被证实相对冗余的两处：
 
 1. concat 后的 joint self-attention
 2. 表示层中的 `summary` 残差
 
-在随后补跑完成的统一证据配置 `configs/final_model_unified_evidence.yaml` 中，这一默认压缩版被正式记为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。其统一结果为：
+在随后补跑完成的统一证据配置 `configs/final_model_unified_evidence.yaml` 中，这一当前默认结构被正式记为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。其统一结果为：
 
 - `audio_only_pcen96hp80_5s`: `0.7052 ± 0.0667`
 - `pressure_flow_5s`: `0.7499 ± 0.2513`
 - `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`: `0.9196 ± 0.0469`
 
-这说明在当前正式口径下，压缩后的默认最佳模型仍然明显高于音频单模态与 PQ-only 双模态基线，因此将其升格为默认最佳模型是成立的。
+这说明在当前正式口径下，当前默认最佳模型仍然明显高于音频单模态与 PQ-only 双模态基线，因此将其升格为默认最佳模型是成立的。
 
 ### 24.3 未完整跑完但已显出负面趋势的候选
 
@@ -2150,7 +2203,7 @@ conda run -n dl python analyze_breath_cycles.py
 
 这进一步支持两个判断：
 
-- `PCEN` 当前仍更适合与 `HP80` 搭配保留；单独去掉滤波后，均值和稳定性都不如默认压缩版
+- `PCEN` 当前仍更适合与 `HP80` 搭配保留；单独去掉滤波后，均值和稳定性都不如当前默认结构
 - `confidence-aware gate + expert residual` 不建议继续裁掉；改成 simple gate 后会出现明显退化
 
-因此，若后续还要继续做压缩搜索，应优先围绕当前已经表现最好的 `SA=0 + no-summary` 主线做组合微调，而不是先删掉 `HP80` 或继续弱化门控机制。
+因此，若后续还要继续做结构搜索，应优先围绕当前已经表现最好的 `SA=0 + no-summary` 主线做组合微调，而不是先删掉 `HP80` 或继续弱化门控机制。

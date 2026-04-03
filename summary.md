@@ -13,17 +13,17 @@
 - main_config: `configs/final_model_unified_evidence.yaml`
 - main_result_dir: `summary-MMmodel/final_model_unified_evidence`
 
-当前默认压缩版结构额外做了一个部署侧调整：
+当前默认结构额外做了一个部署侧调整：
 
 - `self_attention_layers = 0`
 - `use_summary_in_repr = false`
 - 即保留 `PQ <-> audio` 双向 cross-attention，但去掉 concat 之后的 joint self-attention，同时不再使用 `Mean(token) + summary` 的表示构造
-- 这样做是为了压缩模型与减少计算量
-- 在最终统一证据表里，这个默认压缩版的 window macro-F1 为 `0.9196 ± 0.0469`，session macro-F1 为 `0.8815 ± 0.0838`
-- 因此它是当前更推荐保留的压缩版默认结构
+- 这样做是为了减少计算量与结构冗余
+- 在最终统一证据表里，这个当前默认结构的 window macro-F1 为 `0.9196 ± 0.0469`，session macro-F1 为 `0.8815 ± 0.0838`
+- 因此它是当前更推荐保留的默认结构
 - 下文主表中的历史结果仍可用于对照完整模型上限
 
-当前默认最佳模型已经切换到补充压缩实验确认后的 `HCAF-PCEN-DualXAttn`：
+当前默认最佳模型已经切换到补充结构裁剪实验确认后的 `HCAF-PCEN-DualXAttn`：
 
 - 固定非对齐 `5 s` 窗
 - `PCEN96 + HP80`
@@ -31,11 +31,11 @@
 - `use_summary_in_repr = false`
 - `confidence-aware gate + expert residual`
 
-原因是这条压缩版在当前已完成的补充实验中：
+原因是这条默认结构在当前已完成的补充实验中：
 
 - 相比仅去掉 self-attention 的 `SA=0 base` 更强
 - 相比 `summary-token` 版本更稳定
-- 相比 `PCEN64` 压缩前端更能守住 window-level 指标
+- 相比 `PCEN64` 低维前端更能守住 window-level 指标
 
 ## 2. 评估协议
 
@@ -101,7 +101,22 @@
 
 > 当前默认模型在文档中记为 `HCAF-PCEN-DualXAttn`。它保留 `PCEN96 + HP80`、双阶段 cross-attention、`confidence-aware gate + expert residual` 这三组核心机制，并在最终统一证据表中达到 `0.9196 ± 0.0469` 的 window-level macro-F1，且高于 `audio_only` 与 `pressure_flow`，因此应作为当前默认最佳模型。
 
-补充的压缩消融结论如下：
+### 3.1 最终模型与 PCEN 消融结论
+
+围绕当前最终模型，和 `PCEN` 相关的结构/前端消融结论可以直接归纳为：
+
+| variant | window macro-F1 | interpretation |
+| --- | ---: | --- |
+| `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` | `0.9196 ± 0.0469` | 当前默认最佳模型 |
+| `hcaf_comp_sa0_pcen64_hp80_5s` | `0.8773 ± 0.0458` | 将 `PCEN96` 调整为 `PCEN64` 后明显回落 |
+| `hcaf_comp_sa0_pcen96_nofilter_5s` | `0.8891 ± 0.0644` | 保留 `PCEN96` 但去掉 `HP80` 后回落 |
+
+这说明两点：
+
+- `PCEN96 + HP80` 不是可有可无的前端细节，而是当前最终模型的重要组成部分。
+- 无论是把 `PCEN96` 降到 `PCEN64`，还是去掉 `HP80`，都会让最终模型的 window-level 指标下降，因此当前文档应继续把 `PCEN96 + HP80` 作为最终模型的默认音频前端。
+
+补充的结构裁剪消融结论如下：
 
 - `SA=0 base`：`0.8968 ± 0.0495`
 - `SA=0 + no-summary`：`0.9155 ± 0.0133`
@@ -110,9 +125,9 @@
 - `SA=0 + PCEN96 nofilter`：`0.8891 ± 0.0644`
 - `SA=0 + simplegate`：`0.8307 ± 0.0650`
 
-因此，当前最值得保留的压缩版不是把 `summary` 送入 attention，也不是直接减到 `PCEN64`，而是保留 `PCEN96 + HP80` 与 `confidence-aware gate + expert residual`，只去掉 joint self-attention 和表示层中的 `summary` 残差。
+因此，当前最值得保留的默认结构不是把 `summary` 送入 attention，也不是直接减到 `PCEN64`，而是保留 `PCEN96 + HP80` 与 `confidence-aware gate + expert residual`，只去掉 joint self-attention 和表示层中的 `summary` 残差。
 
-压缩补充实验结果索引见 [PARTIAL_RESULTS.md](/home/oi/MMDL/outputs/hcaf_confgate_compression_search/PARTIAL_RESULTS.md)，当前默认模型的统一正式结果见 [overall_results.csv](/home/oi/MMDL/summary-MMmodel/final_model_unified_evidence/overall_results.csv)。
+结构裁剪补充实验结果索引见 [PARTIAL_RESULTS.md](/home/oi/MMDL/outputs/hcaf_confgate_compression_search/PARTIAL_RESULTS.md)，当前默认模型的统一正式结果见 [overall_results.csv](/home/oi/MMDL/summary-MMmodel/final_model_unified_evidence/overall_results.csv)。
 
 ## 4. 模型结构
 
@@ -241,7 +256,7 @@ conv1 -> bn1 -> relu -> maxpool
 1. `pressure -> flow` 与 `flow -> pressure` 双向 cross-attention
 2. `sensor_token_fusion` / `sensor_repr_fusion`
 3. `audio -> sensor` 与 `sensor -> audio` 双向 cross-attention
-4. 历史最优实验里，joint tokens 过 `1` 层 `self-attention`；当前压缩默认结构中这一步已去掉
+4. 历史最优实验里，joint tokens 过 `1` 层 `self-attention`；当前默认结构中这一步已去掉
 5. 分类前再过 `confidence-aware gate + expert residual`
 
 这一步是当前主模型与 `direct concat` 最大的区别。
