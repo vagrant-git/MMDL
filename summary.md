@@ -2,16 +2,16 @@
 
 ## 1. 模型身份
 
-- display_name: `HCAF-PCEN-DualXAttn`
-- experiment_id: `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`
+- display_name: `HCAF-LogMel96-DualXAttn`
+- experiment_id: `hcaf_confgate_residual_logmel96_sa0_nosummary_5s`
 - task: `0 / 2 / 4` 三分类
 - modalities: `audio + pressure + flow`
 - audio encoder: `AudioTokenEncoder`
 - sensor encoder: `TCN`
 - fusion: `PQ cross-attention + audio-sensor cross-attention + confidence-aware gate + expert residual`
 - primary metric: `window macro-F1`
-- main_config: `configs/final_model_unified_evidence.yaml`
-- main_result_dir: `summary-MMmodel/final_model_unified_evidence`
+- main_config: `configs/final_model_logmel.yaml`
+- main_result_dir: `summary-MMmodel/final_model_logmel_only`
 
 当前默认结构额外做了一个部署侧调整：
 
@@ -19,23 +19,23 @@
 - `use_summary_in_repr = false`
 - 即保留 `PQ <-> audio` 双向 cross-attention，但去掉 concat 之后的 joint self-attention，同时不再使用 `Mean(token) + summary` 的表示构造
 - 这样做是为了减少计算量与结构冗余
-- 在最终统一证据表里，这个当前默认结构的 window macro-F1 为 `0.9196 ± 0.0469`，session macro-F1 为 `0.8815 ± 0.0838`
+- 在最终统一证据表里，这个当前默认结构的 window macro-F1 为 `0.8816 ± 0.0664`，session macro-F1 为 `0.9407 ± 0.0838`
 - 因此它是当前更推荐保留的默认结构
 - 下文主表中的历史结果仍可用于对照完整模型上限
 
-当前默认最佳模型已经切换到补充结构裁剪实验确认后的 `HCAF-PCEN-DualXAttn`：
+当前默认最佳模型已经切换到 `HCAF-LogMel96-DualXAttn`：
 
 - 固定非对齐 `5 s` 窗
-- `PCEN96 + HP80`
+- `log-Mel 96`
 - `self_attention_layers = 0`
 - `use_summary_in_repr = false`
 - `confidence-aware gate + expert residual`
 
-原因是这条默认结构在当前已完成的补充实验中：
+原因是这条默认结构在当前已完成的正式实验中：
 
-- 相比仅去掉 self-attention 的 `SA=0 base` 更强
-- 相比 `summary-token` 版本更稳定
-- 相比 `PCEN64` 低维前端更能守住 window-level 指标
+- 在保留 `confidence-aware gate + expert residual` 的前提下，session-level macro-F1 达到 `0.9407 ± 0.0838`
+- 明显高于当前 `audio_only` 的 `0.8296 ± 0.1362`
+- 明显高于当前 `pressure_flow` 的 `0.8519 ± 0.2095`
 
 ## 2. 评估协议
 
@@ -85,36 +85,30 @@
 | --- | ---: | ---: |
 | `audio_only_pcen96hp80_5s` | `0.7052 ± 0.0667` | `0.8296 ± 0.1362` |
 | `pressure_flow_5s` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
-| `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` | `0.9196 ± 0.0469` | `0.8815 ± 0.0838` |
-| `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_audio_5s` | `0.8872 ± 0.0145` | `0.8815 ± 0.0838` |
-| `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_pressure_5s` | `0.9379 ± 0.0221` | `0.9407 ± 0.0838` |
-| `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_flow_5s` | `0.8501 ± 0.1403` | `0.9407 ± 0.0838` |
+| `hcaf_confgate_residual_logmel96_sa0_nosummary_5s` | `0.8816 ± 0.0664` | `0.9407 ± 0.0838` |
 
 当前默认最佳模型相对主对照的窗口级差值：
 
-- `multimodal - audio_only = +0.2144`
-- `multimodal - pressure_flow = +0.1697`
-- `multimodal - minus_audio = +0.0324`
-- `multimodal - minus_flow = +0.0695`
+- `multimodal - audio_only = +0.1764`
+- `multimodal - pressure_flow = +0.1317`
 
 因此当前默认最佳模型的主结论是：
 
-> 当前默认模型在文档中记为 `HCAF-PCEN-DualXAttn`。它保留 `PCEN96 + HP80`、双阶段 cross-attention、`confidence-aware gate + expert residual` 这三组核心机制，并在最终统一证据表中达到 `0.9196 ± 0.0469` 的 window-level macro-F1，且高于 `audio_only` 与 `pressure_flow`，因此应作为当前默认最佳模型。
+> 当前默认模型在文档中记为 `HCAF-LogMel96-DualXAttn`。它保留 `log-Mel 96`、双阶段 cross-attention、`confidence-aware gate + expert residual` 这三组核心机制，并在最终统一证据表中达到 `0.8816 ± 0.0664` 的 window-level macro-F1 与 `0.9407 ± 0.0838` 的 session-level macro-F1，且高于 `audio_only` 与 `pressure_flow`，因此应作为当前默认最佳模型。
 
-### 3.1 最终模型与 PCEN 消融结论
+### 3.1 最终模型与前端对照结论
 
-围绕当前最终模型，和 `PCEN` 相关的结构/前端消融结论可以直接归纳为：
+围绕当前最终模型，音频前端对照结果可以直接归纳为：
 
 | variant | window macro-F1 | interpretation |
 | --- | ---: | --- |
-| `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` | `0.9196 ± 0.0469` | 当前默认最佳模型 |
-| `hcaf_comp_sa0_pcen64_hp80_5s` | `0.8773 ± 0.0458` | 将 `PCEN96` 调整为 `PCEN64` 后明显回落 |
-| `hcaf_comp_sa0_pcen96_nofilter_5s` | `0.8891 ± 0.0644` | 保留 `PCEN96` 但去掉 `HP80` 后回落 |
+| `hcaf_confgate_residual_logmel96_sa0_nosummary_5s` | `0.8816 ± 0.0664` | 当前默认最佳模型 |
+| `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` | `0.8225 ± 0.1681` | 同一主干下换成 `PCEN96 + HP80` 后更低 |
 
-这说明两点：
+这说明：
 
-- `PCEN96 + HP80` 不是可有可无的前端细节，而是当前最终模型的重要组成部分。
-- 无论是把 `PCEN96` 降到 `PCEN64`，还是去掉 `HP80`，都会让最终模型的 window-level 指标下降，因此当前文档应继续把 `PCEN96 + HP80` 作为最终模型的默认音频前端。
+- 当前默认口径下，最终模型选择 `log-Mel 96` 而不是 `PCEN`。
+- 在当前这条最终主干上，`log-Mel 96` 的 session-level macro-F1 明显高于当前 `PCEN96 + HP80` 版本。
 
 补充的结构裁剪消融结论如下：
 
@@ -125,9 +119,9 @@
 - `SA=0 + PCEN96 nofilter`：`0.8891 ± 0.0644`
 - `SA=0 + simplegate`：`0.8307 ± 0.0650`
 
-因此，当前最值得保留的默认结构不是把 `summary` 送入 attention，也不是直接减到 `PCEN64`，而是保留 `PCEN96 + HP80` 与 `confidence-aware gate + expert residual`，只去掉 joint self-attention 和表示层中的 `summary` 残差。
+因此，当前最值得保留的默认结构是保留 `log-Mel 96` 与 `confidence-aware gate + expert residual`，并继续使用 `self_attention_layers = 0` 与 `use_summary_in_repr = false` 这两项结构设置。
 
-结构裁剪补充实验结果索引见 [PARTIAL_RESULTS.md](/home/oi/MMDL/outputs/hcaf_confgate_compression_search/PARTIAL_RESULTS.md)，当前默认模型的统一正式结果见 [overall_results.csv](/home/oi/MMDL/summary-MMmodel/final_model_unified_evidence/overall_results.csv)。
+结构裁剪补充实验结果索引见 [PARTIAL_RESULTS.md](/home/oi/MMDL/outputs/hcaf_confgate_compression_search/PARTIAL_RESULTS.md)，当前默认模型的统一正式结果见 [overall_results.csv](/home/oi/MMDL/summary-MMmodel/final_model_logmel_only/overall_results.csv)。
 
 ## 4. 模型结构
 
@@ -339,4 +333,4 @@ conv1 -> bn1 -> relu -> maxpool
 
 可直接用于当前版本说明：
 
-> 上一阶段正式对照已经证明 `PQ + audio cross-attention` 强于 `audio-only`、`pressure+flow-only` 与 `direct concat`。在此基础上，当前默认模型进一步收敛为文档展示名 `HCAF-PCEN-DualXAttn`，即保留 `PCEN96 + HP80`、双阶段 cross-attention、`confidence-aware gate + expert residual` 的核心版本。
+> 上一阶段正式对照已经证明 `PQ + audio cross-attention` 强于 `audio-only`、`pressure+flow-only` 与 `direct concat`。在此基础上，当前默认模型进一步收敛为文档展示名 `HCAF-LogMel96-DualXAttn`，即保留 `log-Mel 96`、双阶段 cross-attention、`confidence-aware gate + expert residual` 的核心版本。

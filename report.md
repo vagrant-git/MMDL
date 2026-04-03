@@ -1,9 +1,9 @@
-# 第四章结果整理：以 `HCAF-PCEN-DualXAttn` 为默认主模型
+# 第四章结果整理：以 `HCAF-LogMel96-DualXAttn` 为默认主模型
 
 ## 1. 本章采用的结果口径
 
-- 本章当前默认口径统一围绕当前默认多模态模型 `HCAF-PCEN-DualXAttn` 展开，其对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。
-- 其中 `hcaf_confgate_residual_5s` 作为上一版 best，用于说明融合结构本身已经优于普通多模态；`hcaf_confgate_residual_pcen96hp80_5s` 是完整结构版最终模型；`hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` 则是在同一 HCAF 主干上进一步吸收补充结构裁剪实验结论后确定的当前默认最佳模型。
+- 本章当前默认口径统一围绕当前默认多模态模型 `HCAF-LogMel96-DualXAttn` 展开，其对应实验配置 ID 为 `hcaf_confgate_residual_logmel96_sa0_nosummary_5s`。
+- 其中 `hcaf_confgate_residual_5s` 作为上一版 best，用于说明融合结构本身已经优于普通多模态；`hcaf_confgate_residual_pcen96hp80_5s` 是此前的 `PCEN` 版本最终模型；`hcaf_confgate_residual_logmel96_sa0_nosummary_5s` 则是当前切换后的默认最佳模型。
 - 所有实验均采用 `0 / 2 / 4` 三分类任务，且遵循先按 `session` 分组、再切 `5 s` 窗口的 grouped CV 原则，避免窗口泄漏。
 - 主结果、机制消融、缺失模态鲁棒性分别来自三组独立配置；引用时应按各自配置内的对比关系解读，不跨不同轮次混用数值。
 
@@ -62,7 +62,7 @@
 补充说明:
 
 - 代码里还支持更复杂的前端选项，如 `PCEN`、预加重、带通滤波、Mel 频带裁剪与 delta 特征。
-- 第四章最终采用的最优模型 `hcaf_confgate_residual_pcen96hp80_5s` 使用的是 `PCEN96 + high-pass 80 Hz`，而 `log-Mel 64` 主要对应上一版基线 HCAF。
+- 当前默认最终模型 `hcaf_confgate_residual_logmel96_sa0_nosummary_5s` 使用的是 `log-Mel 96`，而此前一版最终模型 `hcaf_confgate_residual_pcen96hp80_5s` 使用的是 `PCEN96 + high-pass 80 Hz`。
 - 生成 Mel 频谱后，会再做一次窗口内标准化:
   - `(feature - mean) / (std + 1e-6)`
 - 因此音频分支实际输入给网络的是标准化后的 `1 x n_mels x time_frames` 张量。

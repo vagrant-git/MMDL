@@ -1,0 +1,4 @@
+experiment,display_name,group,fold,window_accuracy,window_macro_f1,window_precision,window_recall,best_session_method,session_accuracy,session_macro_f1,session_precision,session_recall,best_epoch
+hcaf_confgate_residual_logmel96_sa0_nosummary_5s,HCAF-LogMel96-DualXAttn,main,repeat1_fold1,0.8,0.791906553452652,0.8868387948748598,0.7989066450504699,majority_voting,0.8333333333333334,0.8222222222222223,0.8888888888888888,0.8333333333333334,7
+hcaf_confgate_residual_logmel96_sa0_nosummary_5s,HCAF-LogMel96-DualXAttn,main,repeat1_fold2,0.958968347010551,0.9505479806651271,0.9582117477959717,0.9467727674624227,majority_voting,1.0,1.0,1.0,1.0,2
+hcaf_confgate_residual_logmel96_sa0_nosummary_5s,HCAF-LogMel96-DualXAttn,main,repeat1_fold3,0.9375,0.9024612970321417,0.8853378665533361,0.9471264367816091,majority_voting,1.0,1.0,1.0,1.0,5
