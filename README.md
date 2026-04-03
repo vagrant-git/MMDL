@@ -1,6 +1,6 @@
 # MMDL
 
-多模态液体体积分类实验仓库。当前默认主线已经统一切到：
+多模态液体体积分类实验仓库。当前默认主线已经统一切到论文展示名 `HCAF-PCEN-XAttn`：
 
 - `audio encoder = ResNet18 (ImageNet init)`
 - `PQ + audio cross-attention`
@@ -9,13 +9,19 @@
 
 之所以把主指标切到 `window-level`，是因为当前记录级 `session` 很长、且长度不等；对当前任务来说，窗口判别更直接，也更适合比较不同融合结构本身的有效性。
 
+对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。
+
 ## Current Final Model
 
-- final model: `hcaf_audio_r18img_pq_xattn_5s`
+- display name: `HCAF-PCEN-XAttn`
+- experiment id: `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`
 - task: `0 / 2 / 4` three-class classification
 - modalities: `audio + pressure + flow`
+- audio frontend: `PCEN96 + HP80`
 - audio encoder: `ResNet18` with `ImageNet` initialization
 - PQ encoder: `TCN`
+- interaction: `PQ cross-attention + audio-sensor cross-attention`
+- decision: `confidence-aware gate + expert residual`
 - primary metric: `window macro-F1`
 - split: `session`-grouped `1 repeat x 3 folds`
 - window length: `5 s`
@@ -23,40 +29,39 @@
 
 当前最终主结果目录：
 
-- [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat)
+- [`outputs/hcaf_confgate_compression_search`](outputs/hcaf_confgate_compression_search)
 
 ## Main Result
 
-当前主对照使用同一份 split manifest、同一训练预算、同一音频前端 `PCEN96 + HP80`：
+当前主结果以补充压缩实验为准：
 
 | model | source | window macro-F1 | session macro-F1 |
 | --- | --- | ---: | ---: |
-| `pressure_flow_5s` | [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat) | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
-| `hcaf_audio_r18img_audio_only_5s` | [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat) | `0.8709 ± 0.0722` | `0.9407 ± 0.0838` |
-| `hcaf_audio_r18img_pq_directconcat_5s` | [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat) | `0.7800 ± 0.1610` | `0.7852 ± 0.1923` |
-| `hcaf_audio_r18img_pq_xattn_5s` | [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat) | `0.9145 ± 0.0745` | `0.9407 ± 0.0838` |
+| `HCAF compressed base SA0 PCEN96 HP80` | [`outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md`](outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md) | `0.8968 ± 0.0495` | `0.8815 ± 0.0838` |
+| `HCAF-PCEN-XAttn` | [`outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md`](outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md) | `0.9155 ± 0.0133` | `0.9407 ± 0.0838` |
+| `HCAF compressed SA0 summary token attention` | [`outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md`](outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md) | `0.8298 ± 0.0805` | `0.8815 ± 0.0838` |
+| `HCAF compressed SA0 PCEN64 HP80` | [`outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md`](outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md) | `0.8773 ± 0.0458` | `0.8815 ± 0.0838` |
 
 当前核心结论：
 
-- `PQ + audio cross-attention` 在 `window-level` 上强于 `PQ-only`
-- `PQ + audio cross-attention` 在 `window-level` 上强于 `audio-only`
-- `PQ + audio cross-attention` 在 `window-level` 上强于 `direct concat PQ+audio`
-- 在当前 `ResNet18` 约束下，`session-level` 上 `cross-attention` 与 `audio-only` 打平，因此默认文档口径不再用 session 指标决定最终模型
+- 去掉联合 self-attention 之后，保留核心双阶段 cross-attention 仍然可以稳定达到当前最佳窗口级结果
+- 去掉表示层的 `summary` 残差后，window-level 反而比同轮 `SA0 base` 更高、更稳
+- `PCEN96 + HP80` 仍然比 `PCEN64` 压缩前端更能守住当前主指标
 
 对应窗口级差值：
 
-- vs `audio-only`: `+0.0436`
-- vs `PQ-only`: `+0.1646`
-- vs `direct concat`: `+0.1345`
+- vs `SA0 base`: `+0.0187`
+- vs `summary token`: `+0.0857`
+- vs `PCEN64 HP80`: `+0.0382`
 
 ## Why This Model
 
-当前保留 `hcaf_audio_r18img_pq_xattn_5s` 作为默认主模型，不是因为它在所有口径下都绝对最好，而是因为它同时满足：
+当前保留 `HCAF-PCEN-XAttn` 作为默认主模型，不是因为名字最长，而是因为它保留了最有价值的核心结构：
 
-1. 音频分支满足 `ResNet18(ImageNet init)` 约束
-2. 在固定非对齐窗设置下，`window-level macro-F1` 最强
-3. 明确强于 `PQ-only`、`audio-only` 和 `direct concat`
-4. 结构清晰，便于继续做传感器增强和进一步搜索
+1. `PCEN96 + HP80` 音频前端
+2. `Pressure-Flow` 内部交互 + `audio-sensor` 双阶段 cross-attention
+3. `confidence-aware gate + expert residual`
+4. 在当前已完成结果里，`window-level macro-F1` 最强且波动更小
 
 ## What Was Tried
 
@@ -69,7 +74,7 @@
 - 呼吸周期对齐切窗
 - 单周期 / 双周期归一化表示
 
-目前这些方向都没有稳定超过当前固定非对齐 `5 s` 的 `cross-attention` 主线。
+目前这些方向都没有稳定超过当前固定非对齐 `5 s` 的 `HCAF-PCEN-XAttn` 主线。
 
 ## Repository Guide
 
@@ -85,27 +90,34 @@ MMDL/
 ├── session_aggregation_cv.py # session-level 聚合评估
 ├── summary.md                # 当前主模型技术说明
 ├── EXPERIMENT_SUMMARY.md     # 当前主模型索引
+├── EXPERIMENT_RESULTS_ALL.md # 所有实验结果总表
 └── report.md                 # 逐轮实验记录
 ```
 
 ## What To Read First
 
 1. [`summary.md`](summary.md)  
-   当前主模型 `hcaf_audio_r18img_pq_xattn_5s` 的结构、数据流和性能分析。
+   当前主模型 `HCAF-PCEN-XAttn` 的结构、数据流和性能分析。
 
 2. [`EXPERIMENT_SUMMARY.md`](EXPERIMENT_SUMMARY.md)  
    当前主模型索引和最短证据链摘要。
 
-3. [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat)  
-   当前最重要的正式对照目录，直接证明 `cross-attention` 强于 `PQ-only` / `audio-only` / `direct concat`。
+3. [`outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md`](outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md)
+   当前默认模型的直接证据链，说明保留核心结构后压缩版仍是当前最佳。
 
-4. [`report.md`](report.md)  
+4. [`EXPERIMENT_RESULTS_ALL.md`](EXPERIMENT_RESULTS_ALL.md)
+   单个 Markdown 汇总所有已整理实验结果。
+
+5. [`report.md`](report.md)
    逐轮实验日志，包含 `ResNet18` 路线、固定窗搜索和周期切窗探索的完整过程。
 
 ## Key Configs
 
-- [`configs/hcaf_audioresnet_xattn_vs_concat.yaml`](configs/hcaf_audioresnet_xattn_vs_concat.yaml)  
-  当前最重要的正式主对照配置。
+- [`configs/hcaf_confgate_compression_search.yaml`](configs/hcaf_confgate_compression_search.yaml)
+  当前默认模型所在的压缩消融配置。
+
+- [`configs/final_model_unified_evidence.yaml`](configs/final_model_unified_evidence.yaml)
+  当前 HCAF 完整结构版的统一证据配置。
 
 - [`configs/hcaf_audioresnet_pq_seqmodels.yaml`](configs/hcaf_audioresnet_pq_seqmodels.yaml)  
   `ResNet18 + PQ TCN / GRU / CNN-GRU` 的结构搜索配置。
@@ -134,7 +146,7 @@ conda activate dl
 ```bash
 source /home/oi/miniforge3/etc/profile.d/conda.sh
 conda activate dl
-python summary_mmmodel_experiments.py --config configs/hcaf_audioresnet_xattn_vs_concat.yaml
+python summary_mmmodel_experiments.py --config configs/hcaf_confgate_compression_search.yaml
 ```
 
 运行呼吸周期统计：
@@ -148,5 +160,90 @@ python analyze_breath_cycles.py
 ## Notes
 
 - 旧的 `basic audio encoder` 最终模型文档口径已归档，不再作为当前默认说明
-- 当前默认说明统一围绕 `ResNet18 + PQ+audio cross-attention + fixed 5 s window`
+- 当前默认说明统一围绕 `HCAF-PCEN-XAttn`
 - 若后续继续优化，优先方向是增强 `sensor` 分支，而不是继续改音频编码器
+
+## Markdown Guide
+
+仓库里的 Markdown 文件比较多，但用途大致可以分成 3 类：论文写作用、当前结果查询用、历史归档用。
+
+### 论文写作用
+
+- [`thesis_model_architecture_draft.md`](thesis_model_architecture_draft.md)
+  - 作用：论文正文草稿
+  - 适合：直接改写进“模型结构”章节
+  - 特点：语言最接近正式论文叙述
+
+- [`summary.md`](summary.md)
+  - 作用：当前主模型技术说明
+  - 适合：写“方法”“实验结果”“局限性”时快速抽取内容
+  - 特点：结构化最完整，兼顾技术细节和结果
+
+- [`report.md`](report.md)
+  - 作用：完整实验过程记录
+  - 适合：回查“为什么这么做、试过什么、为什么放弃”
+  - 特点：最全，但最长
+
+- [`EXPERIMENT_SUMMARY.md`](EXPERIMENT_SUMMARY.md)
+  - 作用：顶层简明摘要
+  - 适合：答辩首页、论文补充说明、快速总览
+  - 特点：最短，先看它可以迅速知道现在主线是什么
+
+- [`EXPERIMENT_RESULTS_ALL.md`](EXPERIMENT_RESULTS_ALL.md)
+  - 作用：所有实验结果总表
+  - 适合：一次性总览所有已整理结果
+  - 特点：按目录汇总，便于后续继续追加
+
+### 当前结果查询用
+
+- [`outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md`](outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md)
+  - 作用：当前默认模型压缩对照摘要
+  - 适合：确认 `HCAF-PCEN-XAttn` 为什么是当前默认口径
+
+- [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat/EXPERIMENT_SUMMARY.md`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat/EXPERIMENT_SUMMARY.md)
+  - 作用：当前最关键的正式对照摘要
+  - 适合：确认 `cross-attention` 是否强于 `PQ-only / audio-only / direct concat`
+
+- [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat/overall_results.csv`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat/overall_results.csv)
+  - 作用：当前主结果均值表
+  - 适合：直接查最终指标
+
+- [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat/fold_results.csv`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat/fold_results.csv)
+  - 作用：当前主结果逐折明细
+  - 适合：分析某一折为什么高或低
+
+- [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat/summary.json`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat/summary.json)
+  - 作用：当前主结果的结构化完整输出
+  - 适合：程序化读取或查全部细节
+
+- [`summary-MMmodel/EXPERIMENT_SUMMARY.md`](summary-MMmodel/EXPERIMENT_SUMMARY.md)
+  - 作用：`summary-MMmodel` 目录索引
+  - 适合：定位“现在最该看哪个实验目录”
+
+### 历史归档 / 背景参考
+
+- `summary-MMmodel/*/EXPERIMENT_SUMMARY.md`
+  - 作用：各轮专项实验的摘要
+  - 适合：回查某条旧路线、失败路线、补充验证
+
+- `outputs/*/report.md`
+  - 作用：更早期实验的归档记录
+  - 适合：只在需要追溯旧实验时查看
+
+- [`README.md`](README.md)
+  - 作用：仓库导航页
+  - 适合：第一次进入仓库时建立全局认识
+
+- [`AGENT.md`](AGENT.md)
+  - 作用：AI 自主迭代工作规则
+  - 适合：规范研发流程，不属于论文内容
+
+### 最短阅读路径
+
+如果你现在只想快速定位重点，建议按这个顺序读：
+
+1. [`EXPERIMENT_SUMMARY.md`](EXPERIMENT_SUMMARY.md)
+2. [`summary.md`](summary.md)
+3. [`thesis_model_architecture_draft.md`](thesis_model_architecture_draft.md)
+4. [`outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md`](outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md)
+5. [`EXPERIMENT_RESULTS_ALL.md`](EXPERIMENT_RESULTS_ALL.md)

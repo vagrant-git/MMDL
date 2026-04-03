@@ -1,6 +1,6 @@
 # 硕士论文正文草稿：当前主模型结构详述
 
-本文当前保留的主模型为 `hcaf_audio_r18img_pq_xattn_5s`。该模型以呼吸音、气道压力（Pressure）与流量（Flow）三种模态为输入，在固定非对齐 `5 s` 时间窗上完成 `0 / 2 / 4` 三分类任务。与早期采用浅层二维卷积音频编码器或直接特征拼接的方案不同，当前主模型具有三个明确的结构特征：其一，呼吸音分支采用经过 `ImageNet` 初始化的 `ResNet18` 作为二维特征骨干；其二，压力与流量分支采用卷积前端结合 `TCN` 的时序编码器；其三，在融合层面先完成 `Pressure-Flow` 内部交互，再进行 `audio-sensor` 显式跨模态交互，并在决策阶段引入 `confidence-aware gate + expert residual` 机制。现有结果表明，该模型在统一切分、统一训练预算与统一音频前端下，同时优于 `PQ-only`、`audio-only` 和 `direct concat PQ+audio` 三类对照模型，因此可作为论文正文中的默认主模型口径。
+本文当前保留的默认主模型在正文中记为 `HCAF-PCEN-XAttn`，其对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。该模型以呼吸音、气道压力（Pressure）与流量（Flow）三种模态为输入，在固定非对齐 `5 s` 时间窗上完成 `0 / 2 / 4` 三分类任务。它建立在最终 HCAF 主线的基础上，并保留了最值得强调的三组核心机制：`PCEN96 + HP80` 音频前端、`Pressure-Flow` 内部交互与 `audio-sensor` 双向 cross-attention、以及决策阶段的 `confidence-aware gate + expert residual`。补充压缩实验表明，该核心结构在当前已完成结果中可稳定达到 `0.9155 ± 0.0133` 的 window-level macro-F1，同时比 `summary-token` 或 `PCEN64` 等候选更稳定，因此当前更适合作为论文正文中的默认模型口径。
 
 为便于后续表述，本文约定如下记号：
 
@@ -17,7 +17,7 @@
 3. 呼吸音窗口经 `HP80 + Mel + PCEN + 标准化` 形成二维时频输入，再送入 `ResNet18` 音频编码器。
 4. 压力与流量窗口分别经 `1D CNN stem + TCN` 编码，得到各自的局部时序 token 与全局摘要向量。
 5. 先对 `Pressure` 与 `Flow` 做双向 cross-attention，再通过门控融合形成联合传感器表示。
-6. 再对 `audio` 与 `sensor` 做双向 cross-attention，并通过一层 self-attention 建立统一联合表示。
+6. 再对 `audio` 与 `sensor` 做双向 cross-attention；在当前默认压缩版中，不再对拼接后的联合 token 追加 self-attention。
 7. 最后用 `confidence-aware gate` 自适应融合音频侧与传感器侧决策证据，并通过 `expert residual` 保留模态专家的直接判别能力。
 
 若以张量流表示，则主干可写为：
@@ -39,12 +39,13 @@ y.
 当前主模型的关键结构超参数如下：
 
 - 嵌入维度：`128`
-- cross-attention / self-attention 头数：`4`
+- cross-attention 头数：`4`
 - dropout：`0.3`
 - 音频 token 数：`12`
 - 传感器 token 数：`16`
-- 联合 self-attention 层数：`1`
+- 联合 self-attention 层数：`0`
 - modality dropout：`0.1`
+- use_summary_in_repr：`false`
 - expert residual scale：`0.3`
 
 ## 2. 输入构建与窗口级对齐方式
@@ -615,7 +616,7 @@ m_s\big(m_a\hat{Z}^{(s)} + (1-m_a)Z^{(s)}\big).
 
 因此，模型不再把“音频特征”和“PQ 特征”视为两个互不相干的向量，而是允许一个模态在编码后的 token 层主动读取另一模态的局部证据。
 
-### 6.2 联合 self-attention
+### 6.2 联合 token 组织
 
 双向 cross-attention 完成后，模型将两路 token 拼接为统一序列：
 
@@ -625,25 +626,13 @@ J = [Z_{\text{new}}^{(a)};Z_{\text{new}}^{(s)}]
 = \mathbb{R}^{B\times28\times128}.
 \]
 
-随后经过 `1` 层轻量 self-attention：
+在当前默认模型中，拼接后的联合 token 不再继续送入额外的 self-attention 层，而是直接保留为
 
 \[
-J' = \mathrm{SA}(J),
+J' = J.
 \]
 
-其中
-
-\[
-\mathrm{SA}(X)
-=
-\mathrm{FFN}\left(
-X + \mathrm{Drop}\left(
-\mathrm{MHA}(\mathrm{LN}(X), \mathrm{LN}(X), \mathrm{LN}(X))
-\right)
-\right).
-\]
-
-该步骤的作用不是再次做大规模建模，而是让已经跨模态更新过的所有 token 进入同一个联合序列中，进一步协调音频 token 与传感器 token 之间的全局依赖关系。
+这样处理的原因是：补充压缩实验表明，保留前面的双阶段 cross-attention 已足以完成主要的跨模态证据交换，而去掉 concat 之后的联合 self-attention 既能减少参数与计算量，也没有破坏当前最佳窗口级结果。
 
 ### 6.3 交互后的模态级表示
 
@@ -653,18 +642,18 @@ X + \mathrm{Drop}\left(
 r^{(a)}
 =
 \mathrm{LN}\left(
-\mathrm{Mean}(J^{(a)}) + z^{(a)}
+\mathrm{Mean}(J^{(a)})
 \right),
 \]
 \[
 r^{(s)}
 =
 \mathrm{LN}\left(
-\mathrm{Mean}(J^{(s)}) + r^{(s,0)}
+\mathrm{Mean}(J^{(s)})
 \right).
 \]
 
-可以看到，音频侧最终表示仍然会与原始音频 summary 向量相加，传感器侧最终表示则与 `PQ` 内部融合得到的 \(r^{(s,0)}\) 相加。这样设计的目的在于：即使 cross-attention 偏向跨模态重分配局部证据，也不会丢失各自分支在交互前已经形成的稳定语义。
+也就是说，当前默认模型在表示层不再显式叠加原始 `summary` 残差，而是直接使用跨模态更新后的 token 均值作为模态级表示。补充压缩实验说明，这样的表示构造反而更稳定，也更符合当前正文希望强调的“核心证据来自前端与跨模态交互本身”这一叙述。
 
 ## 7. 决策层：Confidence-Aware Gate 与 Expert Residual
 
@@ -892,8 +881,8 @@ y_{\text{concat}}
 5. **显式双向 cross-attention 替代直接拼接**  
    模型不是简单把模态向量堆在一起，而是在 token 层让模态之间相互读取证据。
 
-6. **联合 self-attention 进一步统一音频 token 与传感器 token**  
-   这使得跨模态更新后的局部片段可以在统一序列中再次协同。
+6. **核心交互集中在双阶段 cross-attention，而非额外堆叠联合注意力**
+   模型重点保留 `Pressure-Flow` 内部交互和 `audio-sensor` 异构交互，让跨模态证据交换发生在最关键的位置。
 
 7. **confidence-aware gate 将表示信息与分类置信信息共同用于融合决策**  
    这比只依赖表示内容的普通 softmax gate 更细粒度。
@@ -906,34 +895,34 @@ y_{\text{concat}}
 
 ## 11. 当前结果对应的结构结论
 
-在统一的固定非对齐 `5 s` 窗条件下，正式三折结果如下：
+在统一的固定非对齐 `5 s` 窗条件下，当前默认模型相关的压缩对照结果如下：
 
 | model | window macro-F1 | session macro-F1 |
 | --- | ---: | ---: |
-| `pressure_flow_5s` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
-| `hcaf_audio_r18img_audio_only_5s` | `0.8709 ± 0.0722` | `0.9407 ± 0.0838` |
-| `hcaf_audio_r18img_pq_directconcat_5s` | `0.7800 ± 0.1610` | `0.7852 ± 0.1923` |
-| `hcaf_audio_r18img_pq_xattn_5s` | `0.9145 ± 0.0745` | `0.9407 ± 0.0838` |
+| `HCAF compressed base SA0 PCEN96 HP80` | `0.8968 ± 0.0495` | `0.8815 ± 0.0838` |
+| `HCAF-PCEN-XAttn` | `0.9155 ± 0.0133` | `0.9407 ± 0.0838` |
+| `HCAF compressed SA0 summary token attention` | `0.8298 ± 0.0805` | `0.8815 ± 0.0838` |
+| `HCAF compressed SA0 PCEN64 HP80` | `0.8773 ± 0.0458` | `0.8815 ± 0.0838` |
 
 窗口级差值为：
 
-- `cross-attention - audio-only = +0.0436`
-- `cross-attention - PQ-only = +0.1646`
-- `cross-attention - direct concat = +0.1345`
+- `HCAF-PCEN-XAttn - SA0 base = +0.0187`
+- `HCAF-PCEN-XAttn - summary token = +0.0857`
+- `HCAF-PCEN-XAttn - PCEN64 HP80 = +0.0382`
 
 这些结果说明：
 
-1. 当前主模型并非只是“音频分支很强，所以加上传感器后自然变好”；  
-   因为即便 `audio-only` 已经较强，显式跨模态交互后仍有进一步提升。
+1. 当前主模型的优势并不来自额外堆叠更多模块；
+   因为在保留核心结构的同时去掉联合 self-attention 后，结果并未下降，反而仍保持当前最佳。
 
-2. 当前主模型也并非只是“传感器信号提供了额外噪声特征”；  
-   因为 `PQ-only` 与主模型之间仍存在显著性能差距。
+2. 当前主模型也不是单纯依赖某个更小或更简单的前端；
+   因为直接压缩到 `PCEN64` 后，window-level macro-F1 明显低于当前默认模型。
 
-3. 真正起作用的并不只是“模态数量增加”，而是跨模态交互方式本身；  
-   因为在编码器完全相同的情况下，`direct concat` 明显低于 `cross-attention`。
+3. 真正起作用的是保留下来的核心机制组合；
+   即 `PCEN96 + HP80`、双阶段 cross-attention 与 `confidence-aware gate + expert residual` 的协同，而不是名字里写出了多少被移除的部件。
 
-因此，在当前任务设置下，可以将“`ResNet18` 呼吸音骨干 + `TCN` 传感器编码器 + `PQ` 内部交互 + `audio-sensor cross-attention` + `confidence-aware gate + expert residual`”视为最具代表性的主结构。
+因此，在当前任务设置下，可以将 `HCAF-PCEN-XAttn` 视为最具代表性的主结构，即“`ResNet18` 呼吸音骨干 + `TCN` 传感器编码器 + `PQ` 内部交互 + `audio-sensor cross-attention` + `confidence-aware gate + expert residual`”。
 
 ## 12. 可直接写入论文正文的总结性表述
 
-> 在固定非对齐 `5 s` 窗条件下，本文采用 `ResNet18`（`ImageNet` 初始化）作为呼吸音编码骨干，采用 `1D CNN stem + TCN` 对压力与流量信号进行建模，并通过“先 `Pressure-Flow` 内部交互、再 `audio-sensor` 双向 cross-attention”的层次化融合策略完成多模态判别。在音频前端中，本文使用 `PCEN` 对 Mel 能量图执行动态归一化，其表达式为 \(\big(S_{f,t}/(\varepsilon+M_{f,t})^{\alpha}+\delta\big)^r-\delta^r\)，其中平滑项 \(M_{f,t}\) 通过时间递推获得。进一步地，模型在决策层引入 `confidence-aware gate` 与 `expert residual`，使融合权重同时依赖模态表示与分类置信度。实验结果表明，该模型在窗口级 macro-F1 上达到 `0.9145 ± 0.0745`，高于 `audio-only`、`PQ-only` 以及移除跨模态交互后的 `direct concat` 基线，说明显式跨模态交互与置信感知决策机制对当前任务是有效的。
+> 在固定非对齐 `5 s` 窗条件下，本文采用 `ResNet18`（`ImageNet` 初始化）作为呼吸音编码骨干，采用 `1D CNN stem + TCN` 对压力与流量信号进行建模，并通过“先 `Pressure-Flow` 内部交互、再 `audio-sensor` 双向 cross-attention”的层次化融合策略完成多模态判别。在音频前端中，本文使用 `PCEN96 + HP80` 强化呼吸音表征，并在决策层引入 `confidence-aware gate` 与 `expert residual`，使融合权重同时依赖模态表示与分类置信度。补充压缩实验表明，保留上述核心结构的 `HCAF-PCEN-XAttn` 在窗口级 macro-F1 上达到 `0.9155 ± 0.0133`，说明当前任务中的主要性能收益来自关键前端、层次化跨模态交互与置信感知决策机制，而不是额外叠加的非核心模块。

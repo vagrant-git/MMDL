@@ -1,9 +1,9 @@
-# 第四章结果整理：以 `hcaf_confgate_residual_pcen96hp80_5s` 为主模型
+# 第四章结果整理：以 `HCAF-PCEN-XAttn` 为默认主模型
 
 ## 1. 本章采用的结果口径
 
-- 本章当前最终口径统一围绕最优多模态模型 `hcaf_confgate_residual_pcen96hp80_5s` 展开。
-- 其中 `hcaf_confgate_residual_5s` 作为上一版 best，用于说明融合结构本身已经优于普通多模态；`hcaf_confgate_residual_pcen96hp80_5s` 则是在相同 HCAF 主干上进一步替换音频前端后得到的当前最终模型。
+- 本章当前默认口径统一围绕压缩后的最佳多模态模型 `HCAF-PCEN-XAttn` 展开，其对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。
+- 其中 `hcaf_confgate_residual_5s` 作为上一版 best，用于说明融合结构本身已经优于普通多模态；`hcaf_confgate_residual_pcen96hp80_5s` 是完整结构版最终模型；`hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` 则是在同一 HCAF 主干上进一步吸收补充压缩实验结论后确定的当前默认最佳模型。
 - 所有实验均采用 `0 / 2 / 4` 三分类任务，且遵循先按 `session` 分组、再切 `5 s` 窗口的 grouped CV 原则，避免窗口泄漏。
 - 主结果、机制消融、缺失模态鲁棒性分别来自三组独立配置；引用时应按各自配置内的对比关系解读，不跨不同轮次混用数值。
 
@@ -238,6 +238,76 @@ pressure 和 flow 的处理路径是并行且对称的。
 - 输出目录: `summary-MMmodel/pq_vs_multimodal_check`
 - split manifest: `summary-MMmodel/pq_vs_multimodal_check/split_manifest.json`
 - seed: `20260330`
+
+## 4. 2026-04-02 消融补充：一次 cross-attention vs 两次 cross-attention
+
+当前 HCAF 主干实际上包含两个层次的 cross-attention:
+
+1. `Pressure-Flow` 内部双向 cross-attention
+2. `audio-sensor` 双向 cross-attention
+
+为了回答“两个 cross-attention 阶段是否优于只保留一个阶段”，本轮新增了一个最小结构消融：
+
+- 在 `mmdl_baseline/models/multimodal.py` 的 `HCAFNet` 中新增 `use_pq_cross_attention` 开关。
+- 当该开关为 `false` 时，模型不再执行 `Pressure-Flow` 内部双向 cross-attention`，而是直接将原始 pressure / flow token 送入后续门控融合，再与音频做 `audio-sensor` cross-attention。
+- 当该开关为 `true` 时，保留原始两阶段设计，即先做 `Pressure-Flow`，再做 `audio-sensor`。
+- 新增配置 `configs/hcaf_audioresnet_one_vs_two_xattn.yaml`，复用 `summary-MMmodel/pq_vs_multimodal_check/split_manifest.json`，在同一 grouped CV 划分上比较:
+  - `hcaf_audio_r18img_pq_one_xattn_5s`
+  - `hcaf_audio_r18img_pq_two_xattn_5s`
+
+窗口级三折结果如下:
+
+- `hcaf_audio_r18img_pq_one_xattn_5s`: `0.8729 ± 0.0617`
+- `hcaf_audio_r18img_pq_two_xattn_5s`: `0.9158 ± 0.0703`
+
+session 级三折结果如下:
+
+- `hcaf_audio_r18img_pq_one_xattn_5s`: `0.8815 ± 0.0838`
+- `hcaf_audio_r18img_pq_two_xattn_5s`: `0.9407 ± 0.0838`
+
+因此，在本轮同 split 对照中:
+
+- 两阶段 cross-attention 在窗口级 macro-F1 上高于单阶段，增益约为 `+0.0429`。
+- 两阶段 cross-attention 在 session 级 macro-F1 上也高于单阶段，增益约为 `+0.0593`。
+- fold 级结果中，单阶段三折为 `0.8025 / 0.8635 / 0.9527`，两阶段为 `0.8166 / 0.9711 / 0.9598`；其中第二折差距尤其明显。
+
+这一轮实验支持如下判断:
+
+- 当前主模型中的两次 cross-attention 不是冗余堆叠，而是各自承担不同职责。
+- `Pressure-Flow` 内部 cross-attention` 先帮助两路传感器完成同质模态协调，再让联合传感器表示与音频交互，整体优于“直接跳过传感器内部交互，只保留 audio-sensor 一次 cross-attention”的版本。
+- 因此，若论文里要解释为什么结构上保留两级 cross-attention，本轮结果可以作为直接证据。
+
+## 7. 2026-04-02 消融补充：concat 后的 joint self-attention 是否冗余
+
+当前主模型在 `audio-sensor` 双向 cross-attention 后，会将两路 token 拼接，再经过 `1` 层联合 self-attention。为了验证这一步是否冗余，本轮新增了一个最小结构消融：
+
+- 新增配置 `configs/hcaf_audioresnet_joint_sa_ablation.yaml`，复用 `summary-MMmodel/pq_vs_multimodal_check/split_manifest.json`。
+- 在同一 grouped CV 划分和同一训练预算下比较两种结构:
+  - `hcaf_audio_r18img_pq_xattn_sa0_5s`: 保留双向 `audio-sensor` cross-attention，但将 `self_attention_layers` 设为 `0`
+  - `hcaf_audio_r18img_pq_xattn_sa1_5s`: 保留当前默认 `self_attention_layers = 1`
+
+窗口级三折结果如下:
+
+- `hcaf_audio_r18img_pq_xattn_sa0_5s`: `0.9018 ± 0.0796`
+- `hcaf_audio_r18img_pq_xattn_sa1_5s`: `0.9130 ± 0.0385`
+
+session 级三折结果如下:
+
+- `hcaf_audio_r18img_pq_xattn_sa0_5s`: `0.8815 ± 0.0838`
+- `hcaf_audio_r18img_pq_xattn_sa1_5s`: `0.8815 ± 0.0838`
+
+这说明:
+
+- 去掉 concat 后的联合 self-attention，并不会让模型完全失效，因此它不是“绝对必要层”。
+- 但保留该层后，窗口级 macro-F1 仍然略高，增益约为 `+0.0111`。
+- 更重要的是，保留联合 self-attention 后，三折标准差从 `0.0796` 降到 `0.0385`，说明它对结果稳定性有明显帮助。
+- 在 session 级口径下，这一轮二者没有拉开差距，说明联合 self-attention 的主要收益更体现在窗口级局部证据协调，而不是 session 聚合阶段。
+
+因此，本轮实验更支持如下判断:
+
+- `cross-attention -> concat -> self-attention` 不是明显冗余堆叠。
+- 联合 self-attention 带来的收益不算特别大，但它能在 cross-attention 之后继续统一音频 token 与传感器 token 的全局依赖，整体上“略有增益且更稳定”。
+- 如果论文里要写得谨慎，可以表述为：联合 self-attention 属于轻量增益模块，而非决定性核心模块；去掉后模型仍可工作，但窗口级表现与稳定性都会略有下降。
 - grouped CV: `1 repeat x 3 folds`
 - 训练预算: `epochs=8`, `early_stop_patience=3`
 - 复现实验命令:
@@ -1989,17 +2059,85 @@ conda run -n dl python analyze_breath_cycles.py
 
 从本节开始，仓库顶层文档默认统一切到:
 
-- `hcaf_audio_r18img_pq_xattn_5s`
-- `audio = ResNet18 (ImageNet init)`
+- 展示名 `HCAF-PCEN-XAttn`
+- 实验配置 ID `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`
 - 固定非对齐 `5 s`
 - 主指标 = `window macro-F1`
 
 原因是:
 
-- 这条路线已经正式证明:
-  - 强于 `PQ-only`
-  - 强于 `audio-only`
-  - 强于 `direct concat PQ+audio`
-- 这些结论都建立在同一份 split manifest、同一份音频前端和同一份训练预算下
+- 这条路线在当前已完成压缩消融里保留了最核心的结构:
+  - `PCEN96 + HP80`
+  - `Pressure-Flow` 内部交互 + `audio-sensor` 双阶段 cross-attention
+  - `confidence-aware gate + expert residual`
+- 并且其窗口级结果高于同轮的 `SA0 base`、`summary token` 与 `PCEN64` 压缩候选
 
-因此后续若没有再次刷出更强结果，当前仓库默认说明都应围绕这条 `PQ + audio cross-attention` 主线展开。
+因此后续若没有再次刷出更强结果，当前仓库默认说明都应围绕 `HCAF-PCEN-XAttn` 展开，而长实验名仅保留在配置和复现实验的位置。
+
+## 24. 2026-04-02 压缩导向消融：围绕当前最终 HCAF 主线裁剪冗余模块
+
+为了把最终模型进一步压缩，同时尽量守住 `window-level` 指标，又额外做了一轮面向当前最终 HCAF 主线的压缩导向消融。与前面 `audioresnet_xattn` 路线的结构探索不同，这一轮统一基于当前最终模型口径展开：
+
+- 主线模型: `hcaf_confgate_residual_pcen96hp80_5s`
+- grouped CV: `1 x 3 folds`
+- split manifest: `summary-MMmodel/pq_vs_multimodal_check/split_manifest.json`
+- 输出目录: `outputs/hcaf_confgate_compression_search`
+- 运行环境: `dl`
+
+本轮优先检查三类可裁剪点：
+
+1. `summary`
+   - 去掉表示层中的 `summary` 残差
+   - 或把 `summary` 当 special token 直接送入 cross-attention
+2. 音频前端
+   - 将 `PCEN96 + HP80` 简化为 `PCEN64 + HP80`
+   - 观察去掉滤波是否会明显掉点
+3. 其它推理冗余
+   - 继续保留此前已经确认的 `self_attention_layers = 0`
+   - 并在代码中补上了“若既不用 confidence-aware gate 也不用 expert residual，则跳过 expert heads”的实现，便于后续进一步压缩
+
+### 24.1 已完整跑完的压缩候选
+
+以下四组已经完整跑完三折：
+
+| Variant | Window-level macro-F1 | Window-level std | Session-level macro-F1 | 备注 |
+| --- | --- | --- | --- | --- |
+| `hcaf_comp_sa0_base_5s` | `0.8968` | `0.0495` | `0.8815` | 仅去掉 joint self-attention |
+| `hcaf_comp_sa0_no_summary_5s` | `0.9155` | `0.0133` | `0.9407` | 去掉 `summary` 残差表示 |
+| `hcaf_comp_sa0_summary_token_5s` | `0.8298` | `0.0805` | `0.8815` | `summary` 送入 attention |
+| `hcaf_comp_sa0_pcen64_hp80_5s` | `0.8773` | `0.0458` | `0.8815` | 将 `PCEN96` 压缩为 `PCEN64` |
+
+直接结论如下：
+
+- 仅去掉 concat 后的 joint self-attention 后，window-level macro-F1 为 `0.8968`，仍处于可用区间，但比完整历史最优 `0.9207` 有可见回落。
+- 在此基础上进一步去掉表示层中的 `summary` 残差后，结果反而回升到 `0.9155 ± 0.0133`，不仅均值更高，而且方差显著缩小。
+- 把 `summary` 直接送入 cross-attention 后，三折测试出现了 `0.7176 / 0.9030 / 0.8687` 的高波动模式，均值只有 `0.8298`，不适合作为默认压缩方案。
+- 将音频前端从 `PCEN96` 直接减到 `PCEN64` 也会带来较明显回落，均值只有 `0.8773`，说明这一步压缩对当前最终模型而言过于激进。
+
+### 24.2 本轮压缩搜索得到的推荐压缩版
+
+对当前最终 HCAF 主线而言，最值得保留的压缩操作不是“让 `summary` 进入 attention”，而是：
+
+- `self_attention_layers = 0`
+- `use_summary_in_repr = false`
+- 保留 `PCEN96 + HP80`
+- 保留 `confidence-aware gate + expert residual`
+
+也就是说，当前最合理的压缩策略不是同时大改前端和门控，而是先裁掉已经被证实相对冗余的两处：
+
+1. concat 后的 joint self-attention
+2. 表示层中的 `summary` 残差
+
+### 24.3 未完整跑完但已显出负面趋势的候选
+
+本轮中断前还启动了两条额外候选：
+
+- `hcaf_comp_sa0_pcen96_nofilter_5s`
+- `hcaf_comp_sa0_simplegate_5s`
+
+其中：
+
+- `hcaf_comp_sa0_pcen96_nofilter_5s` 已完成 `repeat1_fold1`，window-level macro-F1 只有 `0.7989`
+- `hcaf_comp_sa0_simplegate_5s` 尚未完成任何完整 fold
+
+结合更早期同主线实验中 `confidence-aware gate` 单独退化、以及 `PCEN96 + HP80` 明显优于其它音频前端的结果，可以先把这两条视作低优先级方向。若后续还要继续做压缩搜索，应优先围绕当前已经表现最好的 `SA=0 + no-summary` 主线做组合微调，而不是先删掉 `HP80` 或继续弱化门控机制。

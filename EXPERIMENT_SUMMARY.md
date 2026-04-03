@@ -2,53 +2,54 @@
 
 当前默认口径已经统一切到：
 
-- final_model: `hcaf_audio_r18img_pq_xattn_5s`
+- display_name: `HCAF-PCEN-XAttn`
+- experiment_id: `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`
 - primary_metric: `window macro-F1`
 - audio_encoder: `ResNet18 (ImageNet init)`
-- main_config: `configs/hcaf_audioresnet_xattn_vs_concat.yaml`
-- main_result_dir: `summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`
+- main_config: `configs/hcaf_confgate_compression_search.yaml`
+- main_result_dir: `outputs/hcaf_confgate_compression_search`
 - main_report: `report.md`
 
 ## Final Status
 
 | candidate | window macro-F1 | session macro-F1 | note |
 | --- | ---: | ---: | --- |
-| `pressure_flow_5s` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` | PQ-only baseline |
-| `hcaf_audio_r18img_audio_only_5s` | `0.8709 ± 0.0722` | `0.9407 ± 0.0838` | ResNet18 audio-only baseline |
-| `hcaf_audio_r18img_pq_directconcat_5s` | `0.7800 ± 0.1610` | `0.7852 ± 0.1923` | direct concat baseline |
-| `hcaf_audio_r18img_pq_xattn_5s` | `0.9145 ± 0.0745` | `0.9407 ± 0.0838` | current final model |
+| `HCAF compressed base SA0 PCEN96 HP80` | `0.8968 ± 0.0495` | `0.8815 ± 0.0838` | SA0 base |
+| `HCAF-PCEN-XAttn` | `0.9155 ± 0.0133` | `0.9407 ± 0.0838` | current final model |
+| `HCAF compressed SA0 summary token attention` | `0.8298 ± 0.0805` | `0.8815 ± 0.0838` | summary-token variant |
+| `HCAF compressed SA0 PCEN64 HP80` | `0.8773 ± 0.0458` | `0.8815 ± 0.0838` | frontend compression |
 
 ## Why This Model
 
-当前选择 `hcaf_audio_r18img_pq_xattn_5s` 作为默认主模型，原因是：
+当前选择 `HCAF-PCEN-XAttn` 作为默认主模型，原因是：
 
-- 满足 `audio encoder = ResNet18(ImageNet init)` 的约束
-- 在 `window-level` 上强于 `PQ-only`
-- 在 `window-level` 上强于 `audio-only`
-- 在 `window-level` 上强于 `direct concat PQ+audio`
+- 保留了最核心的 `PCEN96 + HP80` 音频前端
+- 保留了 `Pressure-Flow` 内部交互和 `audio-sensor` 双阶段 cross-attention
+- 保留了 `confidence-aware gate + expert residual`
+- 在当前已完成压缩消融中取得最高 `window-level macro-F1`
 
 窗口级差值：
 
-- vs `PQ-only`: `+0.1646`
-- vs `audio-only`: `+0.0436`
-- vs `direct concat`: `+0.1345`
+- vs `SA0 base`: `+0.0187`
+- vs `summary token`: `+0.0857`
+- vs `PCEN64 HP80`: `+0.0382`
 
 ## Key Evidence
 
-- [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat)  
-  直接证明 `cross-attention` 强于 `PQ-only` / `audio-only` / `direct concat`
+- [`outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md`](outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md)
+  当前默认模型的直接证据链
 
-- [`summary-MMmodel/hcaf_audioresnet_pq_seqmodels`](summary-MMmodel/hcaf_audioresnet_pq_seqmodels)  
-  证明 `ResNet18 + PQ TCN` 是当前最稳的 `ResNet18` 主线
+- [`summary-MMmodel/hcaf_audioresnet_xattn_vs_concat/EXPERIMENT_SUMMARY.md`](summary-MMmodel/hcaf_audioresnet_xattn_vs_concat/EXPERIMENT_SUMMARY.md)
+  说明上一阶段为什么切到 `ResNet18 + PQ cross-attention` 主线
 
-- [`summary-MMmodel/hcaf_audioresnet_fixed_window_smoke`](summary-MMmodel/hcaf_audioresnet_fixed_window_smoke)  
-  说明固定更长非对齐窗在当前 fold1 上没有显示出优于 `5 s` 的趋势
+- [`EXPERIMENT_RESULTS_ALL.md`](EXPERIMENT_RESULTS_ALL.md)
+  所有已整理实验结果的一页总表
 
 - [`summary-MMmodel/breath_cycle_analysis.json`](summary-MMmodel/breath_cycle_analysis.json)  
   说明呼吸周期约为 `4 s`，用于支持周期级探索的生理依据
 
 ## Current Recommendation
 
-- 当前文档、汇报和后续实现说明统一围绕 `hcaf_audio_r18img_pq_xattn_5s`
+- 当前文档、汇报和后续实现说明统一围绕 `HCAF-PCEN-XAttn`
 - 当前主指标统一用 `window macro-F1`
 - 旧的 `basic audio encoder` 最终模型口径已归档，不再作为默认说明
