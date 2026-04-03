@@ -66,20 +66,20 @@ audio_frontend:
   highpass_hz: 80.0
 
 report:
-  primary_experiment: hcaf_confgate_residual_pcen96hp80_5s
+  primary_experiment: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
   baseline_experiment: pressure_flow_5s
   main_experiment_names:
     - audio_only_pcen96hp80_5s
     - pressure_flow_5s
-    - hcaf_confgate_residual_pcen96hp80_5s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
   window_experiment_names:
-    - hcaf_confgate_residual_pcen96hp80_5s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
   ablation_experiment_names:
-    - hcaf_confgate_residual_pcen96hp80_5s
-    - hcaf_confgate_residual_pcen96hp80_minus_audio_5s
-    - hcaf_confgate_residual_pcen96hp80_minus_pressure_5s
-    - hcaf_confgate_residual_pcen96hp80_minus_flow_5s
-    - hcaf_confgate_residual_pcen96hp80_audio_only_5s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_audio_5s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_pressure_5s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_flow_5s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_audio_only_5s
 
 main_experiments:
   - name: audio_only_pcen96hp80_5s
@@ -94,46 +94,46 @@ main_experiments:
     window_sec: 5.0
     group: main
 
-  - name: hcaf_confgate_residual_pcen96hp80_5s
-    display_name: HCAF final full multimodal
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
+    display_name: HCAF-PCEN-DualXAttn
     modality: multimodal
     window_sec: 5.0
     group: main
 
 window_length_experiments:
-  - name: hcaf_confgate_residual_pcen96hp80_5s
-    display_name: HCAF final 5 s
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
+    display_name: HCAF-PCEN-DualXAttn 5 s
     modality: multimodal
     window_sec: 5.0
     group: window
 
 ablation_experiments:
-  - name: hcaf_confgate_residual_pcen96hp80_5s
-    display_name: HCAF final full multimodal
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
+    display_name: HCAF-PCEN-DualXAttn
     modality: multimodal
     window_sec: 5.0
     group: ablation
 
-  - name: hcaf_confgate_residual_pcen96hp80_minus_audio_5s
-    display_name: HCAF final without audio
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_audio_5s
+    display_name: HCAF final compressed without audio
     modality: multimodal_minus_audio
     window_sec: 5.0
     group: ablation
 
-  - name: hcaf_confgate_residual_pcen96hp80_minus_pressure_5s
-    display_name: HCAF final without pressure
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_pressure_5s
+    display_name: HCAF final compressed without pressure
     modality: multimodal_minus_pressure
     window_sec: 5.0
     group: ablation
 
-  - name: hcaf_confgate_residual_pcen96hp80_minus_flow_5s
-    display_name: HCAF final without flow
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_flow_5s
+    display_name: HCAF final compressed without flow
     modality: multimodal_minus_flow
     window_sec: 5.0
     group: ablation
 
-  - name: hcaf_confgate_residual_pcen96hp80_audio_only_5s
-    display_name: HCAF final audio only
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_audio_only_5s
+    display_name: HCAF final compressed audio only
     modality: multimodal
     window_sec: 5.0
     group: ablation
@@ -170,7 +170,10 @@ models:
     final_fusion_method: softmax_gate
     audio_token_frames: 12
     sensor_token_length: 16
-    self_attention_layers: 1
+    # Compression default: remove the joint self-attention after audio-sensor cross-attention.
+    self_attention_layers: 0
+    # Compression default: build branch representations from pooled tokens only.
+    use_summary_in_repr: false
     audio_in_channels: 1
     legacy_shared_sensor_norm: false
     confidence_aware_gate: true

@@ -1,6 +1,6 @@
 # 硕士论文正文草稿：当前主模型结构详述
 
-本文当前保留的默认主模型在正文中记为 `HCAF-PCEN-XAttn`，其对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。该模型以呼吸音、气道压力（Pressure）与流量（Flow）三种模态为输入，在固定非对齐 `5 s` 时间窗上完成 `0 / 2 / 4` 三分类任务。它建立在最终 HCAF 主线的基础上，并保留了最值得强调的三组核心机制：`PCEN96 + HP80` 音频前端、`Pressure-Flow` 内部交互与 `audio-sensor` 双向 cross-attention、以及决策阶段的 `confidence-aware gate + expert residual`。补充压缩实验表明，该核心结构在当前已完成结果中可稳定达到 `0.9155 ± 0.0133` 的 window-level macro-F1，同时比 `summary-token` 或 `PCEN64` 等候选更稳定，因此当前更适合作为论文正文中的默认模型口径。
+本文当前保留的默认主模型在正文中记为 `HCAF-PCEN-DualXAttn`，其对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。该模型以呼吸音、气道压力（Pressure）与流量（Flow）三种模态为输入，在固定非对齐 `5 s` 时间窗上完成 `0 / 2 / 4` 三分类任务。它建立在最终 HCAF 主线的基础上，并保留了最值得强调的三组核心机制：`PCEN96 + HP80` 音频前端、`Pressure-Flow` 内部交互与 `audio-sensor` 双向 cross-attention、以及决策阶段的 `confidence-aware gate + expert residual`。在最终统一证据表中，该模型的 window-level macro-F1 为 `0.9196 ± 0.0469`，高于同前端的 `audio_only` 与 `pressure_flow` 基线，因此当前更适合作为论文正文中的默认模型口径。
 
 为便于后续表述，本文约定如下记号：
 
@@ -900,15 +900,15 @@ y_{\text{concat}}
 | model | window macro-F1 | session macro-F1 |
 | --- | ---: | ---: |
 | `HCAF compressed base SA0 PCEN96 HP80` | `0.8968 ± 0.0495` | `0.8815 ± 0.0838` |
-| `HCAF-PCEN-XAttn` | `0.9155 ± 0.0133` | `0.9407 ± 0.0838` |
+| `HCAF-PCEN-DualXAttn` | `0.9155 ± 0.0133` | `0.9407 ± 0.0838` |
 | `HCAF compressed SA0 summary token attention` | `0.8298 ± 0.0805` | `0.8815 ± 0.0838` |
 | `HCAF compressed SA0 PCEN64 HP80` | `0.8773 ± 0.0458` | `0.8815 ± 0.0838` |
 
 窗口级差值为：
 
-- `HCAF-PCEN-XAttn - SA0 base = +0.0187`
-- `HCAF-PCEN-XAttn - summary token = +0.0857`
-- `HCAF-PCEN-XAttn - PCEN64 HP80 = +0.0382`
+- `HCAF-PCEN-DualXAttn - SA0 base = +0.0187`
+- `HCAF-PCEN-DualXAttn - summary token = +0.0857`
+- `HCAF-PCEN-DualXAttn - PCEN64 HP80 = +0.0382`
 
 这些结果说明：
 
@@ -921,8 +921,8 @@ y_{\text{concat}}
 3. 真正起作用的是保留下来的核心机制组合；
    即 `PCEN96 + HP80`、双阶段 cross-attention 与 `confidence-aware gate + expert residual` 的协同，而不是名字里写出了多少被移除的部件。
 
-因此，在当前任务设置下，可以将 `HCAF-PCEN-XAttn` 视为最具代表性的主结构，即“`ResNet18` 呼吸音骨干 + `TCN` 传感器编码器 + `PQ` 内部交互 + `audio-sensor cross-attention` + `confidence-aware gate + expert residual`”。
+因此，在当前任务设置下，可以将 `HCAF-PCEN-DualXAttn` 视为最具代表性的主结构，即“`ResNet18` 呼吸音骨干 + `TCN` 传感器编码器 + `PQ` 内部交互 + `audio-sensor cross-attention` + `confidence-aware gate + expert residual`”。
 
 ## 12. 可直接写入论文正文的总结性表述
 
-> 在固定非对齐 `5 s` 窗条件下，本文采用 `ResNet18`（`ImageNet` 初始化）作为呼吸音编码骨干，采用 `1D CNN stem + TCN` 对压力与流量信号进行建模，并通过“先 `Pressure-Flow` 内部交互、再 `audio-sensor` 双向 cross-attention”的层次化融合策略完成多模态判别。在音频前端中，本文使用 `PCEN96 + HP80` 强化呼吸音表征，并在决策层引入 `confidence-aware gate` 与 `expert residual`，使融合权重同时依赖模态表示与分类置信度。补充压缩实验表明，保留上述核心结构的 `HCAF-PCEN-XAttn` 在窗口级 macro-F1 上达到 `0.9155 ± 0.0133`，说明当前任务中的主要性能收益来自关键前端、层次化跨模态交互与置信感知决策机制，而不是额外叠加的非核心模块。
+> 在固定非对齐 `5 s` 窗条件下，本文采用 `ResNet18`（`ImageNet` 初始化）作为呼吸音编码骨干，采用 `1D CNN stem + TCN` 对压力与流量信号进行建模，并通过“先 `Pressure-Flow` 内部交互、再 `audio-sensor` 双向 cross-attention”的层次化融合策略完成多模态判别。在音频前端中，本文使用 `PCEN96 + HP80` 强化呼吸音表征，并在决策层引入 `confidence-aware gate` 与 `expert residual`，使融合权重同时依赖模态表示与分类置信度。补充压缩实验表明，保留上述核心结构的 `HCAF-PCEN-DualXAttn` 在窗口级 macro-F1 上达到 `0.9155 ± 0.0133`，说明当前任务中的主要性能收益来自关键前端、层次化跨模态交互与置信感知决策机制，而不是额外叠加的非核心模块。

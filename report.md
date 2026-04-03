@@ -1,8 +1,8 @@
-# 第四章结果整理：以 `HCAF-PCEN-XAttn` 为默认主模型
+# 第四章结果整理：以 `HCAF-PCEN-DualXAttn` 为默认主模型
 
 ## 1. 本章采用的结果口径
 
-- 本章当前默认口径统一围绕压缩后的最佳多模态模型 `HCAF-PCEN-XAttn` 展开，其对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。
+- 本章当前默认口径统一围绕压缩后的最佳多模态模型 `HCAF-PCEN-DualXAttn` 展开，其对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。
 - 其中 `hcaf_confgate_residual_5s` 作为上一版 best，用于说明融合结构本身已经优于普通多模态；`hcaf_confgate_residual_pcen96hp80_5s` 是完整结构版最终模型；`hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` 则是在同一 HCAF 主干上进一步吸收补充压缩实验结论后确定的当前默认最佳模型。
 - 所有实验均采用 `0 / 2 / 4` 三分类任务，且遵循先按 `session` 分组、再切 `5 s` 窗口的 grouped CV 原则，避免窗口泄漏。
 - 主结果、机制消融、缺失模态鲁棒性分别来自三组独立配置；引用时应按各自配置内的对比关系解读，不跨不同轮次混用数值。
@@ -2059,7 +2059,7 @@ conda run -n dl python analyze_breath_cycles.py
 
 从本节开始，仓库顶层文档默认统一切到:
 
-- 展示名 `HCAF-PCEN-XAttn`
+- 展示名 `HCAF-PCEN-DualXAttn`
 - 实验配置 ID `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`
 - 固定非对齐 `5 s`
 - 主指标 = `window macro-F1`
@@ -2072,7 +2072,7 @@ conda run -n dl python analyze_breath_cycles.py
   - `confidence-aware gate + expert residual`
 - 并且其窗口级结果高于同轮的 `SA0 base`、`summary token` 与 `PCEN64` 压缩候选
 
-因此后续若没有再次刷出更强结果，当前仓库默认说明都应围绕 `HCAF-PCEN-XAttn` 展开，而长实验名仅保留在配置和复现实验的位置。
+因此后续若没有再次刷出更强结果，当前仓库默认说明都应围绕 `HCAF-PCEN-DualXAttn` 展开，而长实验名仅保留在配置和复现实验的位置。
 
 ## 24. 2026-04-02 压缩导向消融：围绕当前最终 HCAF 主线裁剪冗余模块
 
@@ -2128,16 +2128,29 @@ conda run -n dl python analyze_breath_cycles.py
 1. concat 后的 joint self-attention
 2. 表示层中的 `summary` 残差
 
+在随后补跑完成的统一证据配置 `configs/final_model_unified_evidence.yaml` 中，这一默认压缩版被正式记为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。其统一结果为：
+
+- `audio_only_pcen96hp80_5s`: `0.7052 ± 0.0667`
+- `pressure_flow_5s`: `0.7499 ± 0.2513`
+- `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`: `0.9196 ± 0.0469`
+
+这说明在当前正式口径下，压缩后的默认最佳模型仍然明显高于音频单模态与 PQ-only 双模态基线，因此将其升格为默认最佳模型是成立的。
+
 ### 24.3 未完整跑完但已显出负面趋势的候选
 
-本轮中断前还启动了两条额外候选：
+此前尚未收口的两条额外候选也已经补跑完成：
 
 - `hcaf_comp_sa0_pcen96_nofilter_5s`
 - `hcaf_comp_sa0_simplegate_5s`
 
-其中：
+结果如下：
 
-- `hcaf_comp_sa0_pcen96_nofilter_5s` 已完成 `repeat1_fold1`，window-level macro-F1 只有 `0.7989`
-- `hcaf_comp_sa0_simplegate_5s` 尚未完成任何完整 fold
+- `hcaf_comp_sa0_pcen96_nofilter_5s`: `0.8891 ± 0.0644`
+- `hcaf_comp_sa0_simplegate_5s`: `0.8307 ± 0.0650`
 
-结合更早期同主线实验中 `confidence-aware gate` 单独退化、以及 `PCEN96 + HP80` 明显优于其它音频前端的结果，可以先把这两条视作低优先级方向。若后续还要继续做压缩搜索，应优先围绕当前已经表现最好的 `SA=0 + no-summary` 主线做组合微调，而不是先删掉 `HP80` 或继续弱化门控机制。
+这进一步支持两个判断：
+
+- `PCEN` 当前仍更适合与 `HP80` 搭配保留；单独去掉滤波后，均值和稳定性都不如默认压缩版
+- `confidence-aware gate + expert residual` 不建议继续裁掉；改成 simple gate 后会出现明显退化
+
+因此，若后续还要继续做压缩搜索，应优先围绕当前已经表现最好的 `SA=0 + no-summary` 主线做组合微调，而不是先删掉 `HP80` 或继续弱化门控机制。

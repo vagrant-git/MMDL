@@ -386,6 +386,9 @@ class HCAFNet(nn.Module):
         legacy_shared_sensor_norm: bool = False,
         confidence_aware_gate: bool = False,
         expert_residual_scale: float = 0.0,
+        use_pq_cross_attention: bool = True,
+        use_summary_in_repr: bool = True,
+        use_summary_token_in_attention: bool = False,
         **_: object,
     ) -> None:
         super().__init__()
@@ -395,6 +398,9 @@ class HCAFNet(nn.Module):
         self.legacy_shared_sensor_norm = legacy_shared_sensor_norm
         self.confidence_aware_gate = confidence_aware_gate
         self.expert_residual_scale = expert_residual_scale
+        self.use_pq_cross_attention = use_pq_cross_attention
+        self.use_summary_in_repr = use_summary_in_repr
+        self.use_summary_token_in_attention = use_summary_token_in_attention
         self.num_classes = num_classes
         self.capture_debug = False
         self.last_debug: dict[str, torch.Tensor] = {}
@@ -464,12 +470,13 @@ class HCAFNet(nn.Module):
                 nn.Linear(fusion_hidden_dim, num_classes),
             )
         else:
+            self.use_expert_heads = confidence_aware_gate or expert_residual_scale > 0
             if confidence_aware_gate:
                 self.reliability_gate = ConfidenceAwareReliabilityGate(embedding_dim, num_classes=num_classes, dropout=dropout)
             else:
                 self.reliability_gate = ReliabilityGate(embedding_dim, dropout=dropout)
-            self.audio_expert = nn.Linear(embedding_dim, num_classes)
-            self.sensor_expert = nn.Linear(embedding_dim, num_classes)
+            self.audio_expert = nn.Linear(embedding_dim, num_classes) if self.use_expert_heads else None
+            self.sensor_expert = nn.Linear(embedding_dim, num_classes) if self.use_expert_heads else None
             self.classifier = nn.Sequential(
                 nn.Linear(embedding_dim, fusion_hidden_dim),
                 nn.GELU(),
@@ -509,6 +516,23 @@ class HCAFNet(nn.Module):
         pooled = tokens.mean(dim=1)
         return pooled * mask
 
+    def _repr_from_tokens(
+        self,
+        tokens: torch.Tensor,
+        summary: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> torch.Tensor:
+        if self.use_summary_token_in_attention:
+            repr_base = tokens[:, 0]
+            if self.use_summary_in_repr:
+                repr_base = repr_base + summary
+            return repr_base * mask
+
+        repr_base = self._masked_mean(tokens, mask)
+        if self.use_summary_in_repr:
+            repr_base = repr_base + summary
+        return repr_base * mask
+
     def _apply_mask(self, tensor: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         return tensor * self._expand_mask(mask, tensor.dim())
 
@@ -538,17 +562,23 @@ class HCAFNet(nn.Module):
         flow_tokens = self._apply_mask(flow_tokens, flow_mask)
         flow_summary = self._apply_mask(flow_summary, flow_mask)
 
-        pressure_cross = self.pressure_to_flow(pressure_tokens, flow_tokens)
-        flow_cross = self.flow_to_pressure(flow_tokens, pressure_tokens)
-        pressure_tokens = pressure_mask.unsqueeze(1) * (
-            flow_mask.unsqueeze(1) * pressure_cross + (1.0 - flow_mask.unsqueeze(1)) * pressure_tokens
-        )
-        flow_tokens = flow_mask.unsqueeze(1) * (
-            pressure_mask.unsqueeze(1) * flow_cross + (1.0 - pressure_mask.unsqueeze(1)) * flow_tokens
-        )
+        if self.use_summary_token_in_attention:
+            audio_tokens = torch.cat([audio_summary.unsqueeze(1), audio_tokens], dim=1)
+            pressure_tokens = torch.cat([pressure_summary.unsqueeze(1), pressure_tokens], dim=1)
+            flow_tokens = torch.cat([flow_summary.unsqueeze(1), flow_tokens], dim=1)
 
-        pressure_repr = self._sensor_branch_norm("pressure")(self._masked_mean(pressure_tokens, pressure_mask) + pressure_summary)
-        flow_repr = self._sensor_branch_norm("flow")(self._masked_mean(flow_tokens, flow_mask) + flow_summary)
+        if self.use_pq_cross_attention:
+            pressure_cross = self.pressure_to_flow(pressure_tokens, flow_tokens)
+            flow_cross = self.flow_to_pressure(flow_tokens, pressure_tokens)
+            pressure_tokens = pressure_mask.unsqueeze(1) * (
+                flow_mask.unsqueeze(1) * pressure_cross + (1.0 - flow_mask.unsqueeze(1)) * pressure_tokens
+            )
+            flow_tokens = flow_mask.unsqueeze(1) * (
+                pressure_mask.unsqueeze(1) * flow_cross + (1.0 - pressure_mask.unsqueeze(1)) * flow_tokens
+            )
+
+        pressure_repr = self._sensor_branch_norm("pressure")(self._repr_from_tokens(pressure_tokens, pressure_summary, pressure_mask))
+        flow_repr = self._sensor_branch_norm("flow")(self._repr_from_tokens(flow_tokens, flow_summary, flow_mask))
         sensor_tokens = self.sensor_token_fusion(
             pressure_tokens,
             flow_tokens,
@@ -558,8 +588,8 @@ class HCAFNet(nn.Module):
         sensor_repr = self.sensor_repr_fusion(pressure_repr, flow_repr, pressure_mask, flow_mask)
 
         if self.audio_sensor_interaction == "direct_concat":
-            audio_repr = self.audio_repr_norm(self._masked_mean(audio_tokens, audio_mask) + audio_summary)
-            sensor_repr = self.sensor_repr_norm(self._masked_mean(sensor_tokens, sensor_mask) + sensor_repr)
+            audio_repr = self.audio_repr_norm(self._repr_from_tokens(audio_tokens, audio_summary, audio_mask))
+            sensor_repr = self.sensor_repr_norm(self._repr_from_tokens(sensor_tokens, sensor_repr, sensor_mask))
             logits = self.classifier(torch.cat([audio_repr, sensor_repr], dim=-1))
             weights = None
             audio_logits = None
@@ -581,11 +611,12 @@ class HCAFNet(nn.Module):
             audio_tokens = joint_tokens[:, :audio_length]
             sensor_tokens = joint_tokens[:, audio_length:]
 
-            audio_repr = self.audio_repr_norm(self._masked_mean(audio_tokens, audio_mask) + audio_summary)
-            sensor_repr = self.sensor_repr_norm(self._masked_mean(sensor_tokens, sensor_mask) + sensor_repr)
-            audio_logits = self.audio_expert(audio_repr)
-            sensor_logits = self.sensor_expert(sensor_repr)
+            audio_repr = self.audio_repr_norm(self._repr_from_tokens(audio_tokens, audio_summary, audio_mask))
+            sensor_repr = self.sensor_repr_norm(self._repr_from_tokens(sensor_tokens, sensor_repr, sensor_mask))
+            audio_logits = self.audio_expert(audio_repr) if self.audio_expert is not None else None
+            sensor_logits = self.sensor_expert(sensor_repr) if self.sensor_expert is not None else None
             if self.confidence_aware_gate:
+                assert audio_logits is not None and sensor_logits is not None
                 fused_repr, weights = self.reliability_gate(
                     audio_repr,
                     sensor_repr,
@@ -598,6 +629,7 @@ class HCAFNet(nn.Module):
                 fused_repr, weights = self.reliability_gate(audio_repr, sensor_repr, audio_mask, sensor_mask)
             logits = self.classifier(fused_repr)
             if self.expert_residual_scale > 0:
+                assert audio_logits is not None and sensor_logits is not None
                 expert_logits = weights[:, :1] * audio_logits + weights[:, 1:] * sensor_logits
                 logits = logits + self.expert_residual_scale * expert_logits
         if self.capture_debug:
