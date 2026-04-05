@@ -1,3 +1,7 @@
+# Canonical default model config.
+# Default display name: HCAF-PCEN-DualXAttn
+# Default experiment id: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
+# If documentation conflicts with this file, prefer this config and MODEL_IDENTITY.md.
 seed: 20260330
 data_root: data
 output_root: summary-MMmodel/final_model_unified_evidence

@@ -1,5 +1,7 @@
 # 硕士论文正文草稿：当前主模型结构详述
 
+> 权威声明：论文正文当前默认模型统一为 `HCAF-PCEN-DualXAttn`，实验 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。如果仓库其他历史文档还出现 `HCAF-LogMel96-DualXAttn`，那是旧口径，不应再作为正文默认模型。
+
 本文当前保留的默认主模型在正文中记为 `HCAF-PCEN-DualXAttn`，其对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。该模型以呼吸音、气道压力（Pressure）与流量（Flow）三种模态为输入，在固定非对齐 `5 s` 时间窗上完成 `0 / 2 / 4` 三分类任务。它建立在最终 HCAF 主线的基础上，并保留了最值得强调的三组核心机制：`PCEN96 + HP80` 音频前端、`Pressure-Flow` 内部交互与 `audio-sensor` 双向 cross-attention、以及决策阶段的 `confidence-aware gate + expert residual`。在最终统一证据表中，该模型的 window-level macro-F1 为 `0.9196 ± 0.0469`，高于同前端的 `audio_only` 与 `pressure_flow` 基线，因此当前更适合作为论文正文中的默认模型口径。
 
 为便于后续表述，本文约定如下记号：

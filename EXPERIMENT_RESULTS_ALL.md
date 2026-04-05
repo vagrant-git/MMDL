@@ -2,6 +2,8 @@
 
 当前默认模型展示名为 `HCAF-PCEN-DualXAttn`，对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。
 
+唯一正式默认模型的短声明见 [MODEL_IDENTITY.md](/home/wangshuai/MMDL/MODEL_IDENTITY.md)。
+
 ## Current Default
 
 | name | experiment id | source | window macro-F1 | session macro-F1 |

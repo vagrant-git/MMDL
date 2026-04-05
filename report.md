@@ -1,9 +1,11 @@
-# 第四章结果整理：以 `HCAF-LogMel96-DualXAttn` 为默认主模型
+# 第四章结果整理：当前默认主模型统一为 `HCAF-PCEN-DualXAttn`
+
+> 权威声明：本仓库当前唯一正式默认模型是 `HCAF-PCEN-DualXAttn`，实验 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`，配置文件为 `configs/final_model_unified_evidence.yaml`。若本文件后文保留早期 `logmel` 路线讨论，那些内容仅作历史对照，不代表当前默认模型。
 
 ## 1. 本章采用的结果口径
 
-- 本章当前默认口径统一围绕当前默认多模态模型 `HCAF-LogMel96-DualXAttn` 展开，其对应实验配置 ID 为 `hcaf_confgate_residual_logmel96_sa0_nosummary_5s`。
-- 其中 `hcaf_confgate_residual_5s` 作为上一版 best，用于说明融合结构本身已经优于普通多模态；`hcaf_confgate_residual_pcen96hp80_5s` 是此前的 `PCEN` 版本最终模型；`hcaf_confgate_residual_logmel96_sa0_nosummary_5s` 则是当前切换后的默认最佳模型。
+- 本章当前默认口径统一围绕当前默认多模态模型 `HCAF-PCEN-DualXAttn` 展开，其对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。
+- 其中 `hcaf_confgate_residual_5s` 作为上一版 best，用于说明融合结构本身已经优于普通多模态；`hcaf_confgate_residual_logmel96_sa0_nosummary_5s` 仅作为历史 `logmel` 对照；`hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` 才是当前唯一正式默认模型。
 - 所有实验均采用 `0 / 2 / 4` 三分类任务，且遵循先按 `session` 分组、再切 `5 s` 窗口的 grouped CV 原则，避免窗口泄漏。
 - 主结果、机制消融、缺失模态鲁棒性分别来自三组独立配置；引用时应按各自配置内的对比关系解读，不跨不同轮次混用数值。
 
@@ -62,7 +64,7 @@
 补充说明:
 
 - 代码里还支持更复杂的前端选项，如 `PCEN`、预加重、带通滤波、Mel 频带裁剪与 delta 特征。
-- 当前默认最终模型 `hcaf_confgate_residual_logmel96_sa0_nosummary_5s` 使用的是 `log-Mel 96`，而此前一版最终模型 `hcaf_confgate_residual_pcen96hp80_5s` 使用的是 `PCEN96 + high-pass 80 Hz`。
+- 当前唯一正式默认模型 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` 使用的是 `PCEN96 + high-pass 80 Hz`；`hcaf_confgate_residual_logmel96_sa0_nosummary_5s` 仅保留为历史 `log-Mel 96` 对照。
 - 生成 Mel 频谱后，会再做一次窗口内标准化:
   - `(feature - mean) / (std + 1e-6)`
 - 因此音频分支实际输入给网络的是标准化后的 `1 x n_mels x time_frames` 张量。

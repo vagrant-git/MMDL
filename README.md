@@ -2,6 +2,8 @@
 
 多模态液体体积分类实验仓库。当前默认主线已经统一切到论文展示名 `HCAF-PCEN-DualXAttn`。
 
+唯一正式默认模型说明见 [MODEL_IDENTITY.md](/home/wangshuai/MMDL/MODEL_IDENTITY.md)。如果其他文档里还有旧的 `logmel` 表述，以该文件和本页为准。
+
 - experiment id: `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`
 - task: `0 / 2 / 4` 三分类
 - default metric: `window macro-F1`
@@ -36,6 +38,9 @@
 
 - [`summary.md`](summary.md)
   当前默认最佳模型的技术说明，适合先读。
+
+- [`MODEL_IDENTITY.md`](MODEL_IDENTITY.md)
+  当前唯一正式默认模型的短声明，优先级最高。
 
 - [`EXPERIMENT_SUMMARY.md`](EXPERIMENT_SUMMARY.md)
   当前默认结果的最短摘要，适合快速确认主结论。

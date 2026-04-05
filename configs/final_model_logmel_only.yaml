@@ -1,3 +1,6 @@
+# Historical comparison config only.
+# Not the current default model.
+# Current canonical default is configs/final_model_unified_evidence.yaml
 seed: 20260330
 data_root: data
 output_root: summary-MMmodel/final_model_logmel_only

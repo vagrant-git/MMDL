@@ -9,6 +9,8 @@
 - main_result_dir: `summary-MMmodel/final_model_unified_evidence`
 - main_report: `report.md`
 
+唯一正式默认模型的短声明见 [MODEL_IDENTITY.md](/home/wangshuai/MMDL/MODEL_IDENTITY.md)。
+
 ## Final Status
 
 | candidate | window macro-F1 | session macro-F1 | note |
