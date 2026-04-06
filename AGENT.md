@@ -23,7 +23,7 @@
 
 ### 2.3 ⚠️ 强制 Python 环境约束 (Critical)
 - **必须且只能**使用名为 `dl` 的 Python 虚拟环境执行所有 Python 脚本、训练和评估命令。
-- **注意**：为了加速 可以调整num worker，
+- **注意**：为了加速 可以调整num worker，充足利用gpu算力
 **绝不能**使用系统默认的 `python` 环境。
 
 

@@ -66,24 +66,24 @@ audio_frontend:
   highpass_hz: 80.0
 
 report:
-  primary_experiment: hcaf_audio_r18img_pq_r18_sched_5s
+  primary_experiment: hcaf_audio_r18img_pq_r18_longtokens_attn2_5s
   baseline_experiment: hcaf_audio_r18img_pq_r18_5s
   main_experiment_names:
-    - hcaf_audio_r18img_pq_r18_sched_5s
+    - hcaf_audio_r18img_pq_r18_longtokens_attn2_5s
   window_experiment_names: []
   ablation_experiment_names: []
 
 main_experiments:
-  - name: hcaf_audio_r18img_pq_r18_sched_5s
-    display_name: Audio R18 ImageNet + PQ R18 (ReduceLROnPlateau)
+  - name: hcaf_audio_r18img_pq_r18_longtokens_attn2_5s
+    display_name: Audio R18 ImageNet + PQ R18 long tokens + attn2
     modality: multimodal
     window_sec: 5.0
     group: main
-    config_overrides:
-      lr_scheduler: reduce_on_plateau
-      lr_scheduler_factor: 0.5
-      lr_scheduler_patience: 1
-      min_learning_rate: 0.00001
+    model_overrides:
+      models:
+        multimodal:
+          sensor_token_length: 24
+          self_attention_layers: 2
 
 window_length_experiments: []
 ablation_experiments: []
