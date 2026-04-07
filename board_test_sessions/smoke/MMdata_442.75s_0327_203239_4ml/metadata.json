@@ -1,0 +1,53 @@
+{
+  "sync_start_utc": "2026-03-27T12:32:40.150739Z",
+  "duration_sec_requested": 1800,
+  "duration_sec_captured": 442.75,
+  "runtime_sec": 443.0685983000003,
+  "label": "4ml",
+  "stop_reason": "keyboard_interrupt",
+  "timing": {
+    "sync_start_perf_counter": 14210.1164967,
+    "sync_end_perf_counter": 14653.185095,
+    "daq_first_sample_time_sec": 0.02369389999876148,
+    "daq_last_sample_time_sec": 442.76369389999877,
+    "audio_last_frame_time_sec": 443.0419504999991
+  },
+  "audio": {
+    "filename": "audio.wav",
+    "requested_sample_rate_hz": 22050,
+    "actual_sample_rate_hz": 22050.0,
+    "sample_rate_hz": 22050.0,
+    "channels": 1,
+    "dtype": "int16",
+    "blocksize": 1024,
+    "num_frames": 9768960,
+    "duration_sec_from_frames": 443.0367346938776,
+    "recent_callback_timeout_sec": 1.0,
+    "input_device": "MAYA44USB Multichannel 4 (3- ES [MME]",
+    "input_device_name": "MAYA44USB Multichannel 4 (3- ES",
+    "input_device_id": 1,
+    "input_hostapi": "MME"
+  },
+  "daq": {
+    "filename": "daq.csv",
+    "device_name": "Dev1",
+    "sample_rate_hz": 100,
+    "pressure_channel": "Dev1/ai0",
+    "flow_channel": "Dev1/ai1",
+    "num_samples": 44275
+  },
+  "consistency_checks": {
+    "audio_duration_sec": 443.0367346938776,
+    "daq_duration_sec": 442.75,
+    "audio_to_daq_duration_ratio": 1.0006476221205591,
+    "warning": null,
+    "finalize_warning": null
+  },
+  "saved_files": {
+    "capture_dir": "C:\\Users\\WangShuai\\Desktop\\MMDataset\\MMDaQ\\MMdata_442.75s_0327_203239_4ml",
+    "audio_wav": "C:\\Users\\WangShuai\\Desktop\\MMDataset\\MMDaQ\\MMdata_442.75s_0327_203239_4ml\\audio.wav",
+    "daq_csv": "C:\\Users\\WangShuai\\Desktop\\MMDataset\\MMDaQ\\MMdata_442.75s_0327_203239_4ml\\daq.csv",
+    "metadata_json": "C:\\Users\\WangShuai\\Desktop\\MMDataset\\MMDaQ\\MMdata_442.75s_0327_203239_4ml\\metadata.json"
+  },
+  "notes": "audio 和 daq 通过同一软件流程启动，属于软件同步，不是硬件时钟级同步。实时图统一使用 perf_counter 推导的同一时间窗显示。"
+}

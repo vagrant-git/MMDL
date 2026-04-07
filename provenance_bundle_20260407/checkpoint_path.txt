@@ -1,0 +1,1 @@
+/home/oi/MMDL/summary-MMmodel/final_model_unified_evidence/runs/hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s/repeat1_fold1/best_model.pt

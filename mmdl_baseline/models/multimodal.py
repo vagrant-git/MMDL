@@ -274,10 +274,8 @@ class MaskedTokenGate(nn.Module):
         both = left_mask * right_mask
         left_only = left_mask * (1.0 - right_mask)
         right_only = right_mask * (1.0 - left_mask)
-        fused = torch.zeros_like(left)
-        if torch.any(both > 0):
-            gate = self.gate(torch.cat([left, right], dim=-1))
-            fused = fused + both * (gate * left + (1.0 - gate) * right)
+        gate = self.gate(torch.cat([left, right], dim=-1))
+        fused = both * (gate * left + (1.0 - gate) * right)
         fused = fused + left_only * left + right_only * right
         availability = torch.clamp(left_mask + right_mask, max=1.0)
         return self.out(fused) * availability

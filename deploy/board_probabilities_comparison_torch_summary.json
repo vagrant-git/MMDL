@@ -1,0 +1,62 @@
+{
+  "board_csv": "/home/oi/MMDL/board_probabilities_by_window_torch.csv",
+  "onnx": "/home/oi/MMDL/deploy/artifacts/hcaf_pcen_dualxattn.onnx",
+  "config": "/home/oi/MMDL/configs/final_model_unified_evidence.yaml",
+  "window_sec": 5.0,
+  "num_windows": 362,
+  "sessions": [
+    "MMdata_1136.50s_0327_183428_2ml",
+    "MMdata_235.00s_0320_224031_no_secretion",
+    "MMdata_442.75s_0327_203239_4ml"
+  ],
+  "classes": [
+    0,
+    2,
+    4
+  ],
+  "per_class": {
+    "0": {
+      "mean_prob_diff": 0.12574094153787807,
+      "mean_abs_prob_diff": 0.12579337260006176,
+      "median_abs_prob_diff": 0.0005477162958413828,
+      "max_abs_prob_diff": 0.9977050037414301,
+      "std_prob_diff": 0.32928933844411756,
+      "mean_relative_logit_diff": 2.0738555965725975,
+      "mean_abs_relative_logit_diff": 2.077142564455701,
+      "median_abs_relative_logit_diff": 1.3152718076376302,
+      "max_abs_relative_logit_diff": 9.08611309878459,
+      "std_relative_logit_diff": 2.636653169424485
+    },
+    "2": {
+      "mean_prob_diff": 0.6199151991086447,
+      "mean_abs_prob_diff": 0.6254840295557843,
+      "median_abs_prob_diff": 0.9817601563408971,
+      "max_abs_prob_diff": 0.994308435707353,
+      "std_prob_diff": 0.47830308137636,
+      "mean_relative_logit_diff": 2.1118317258835595,
+      "mean_abs_relative_logit_diff": 3.626493484311069,
+      "median_abs_relative_logit_diff": 4.2392967746962995,
+      "max_abs_relative_logit_diff": 5.3952767930585,
+      "std_relative_logit_diff": 3.2634038940299255
+    },
+    "4": {
+      "mean_prob_diff": -0.7456561420755223,
+      "mean_abs_prob_diff": 0.7505213119299762,
+      "median_abs_prob_diff": 0.9868750292807817,
+      "max_abs_prob_diff": 0.9969610839907546,
+      "std_prob_diff": 0.4276186440369071,
+      "mean_relative_logit_diff": -4.185687322456157,
+      "mean_abs_relative_logit_diff": 5.284638249296926,
+      "median_abs_relative_logit_diff": 5.883317997025564,
+      "max_abs_relative_logit_diff": 8.285595406308108,
+      "std_relative_logit_diff": 3.7540901985378747
+    }
+  },
+  "overall": {
+    "mean_abs_prob_diff": 0.5005995713619408,
+    "max_abs_prob_diff": 0.9977050037414301,
+    "mean_abs_relative_logit_diff": 3.662758099354565,
+    "max_abs_relative_logit_diff": 9.08611309878459,
+    "match_rate_with_board_argmax": 0.2430939226519337
+  }
+}

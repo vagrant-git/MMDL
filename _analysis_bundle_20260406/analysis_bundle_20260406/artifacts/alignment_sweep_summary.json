@@ -1,0 +1,108 @@
+{
+  "ranked_by_mean_abs_prob_diff_mean": [
+    {
+      "name": "librosa_rolling60",
+      "file": "/home/firefly/Desktop/MMDL/board_test_sessions/smoke_diff_artifacts/board_probabilities_librosa_rolling60.csv",
+      "windows": 362,
+      "label_match_rate": 0.2430939226519337,
+      "mean_abs_prob_diff_mean": 0.4984878938530536,
+      "mean_abs_prob_diff_p50": 0.6567694039646692,
+      "mean_abs_prob_diff_p95": 0.6648832191286298,
+      "max_abs_prob_diff_mean": 0.7477318418817185,
+      "max_abs_prob_diff_p50": 0.9851541469106451,
+      "max_abs_prob_diff_p95": 0.9973248130234424,
+      "max_abs_prob_diff_max": 0.9977539870815235
+    },
+    {
+      "name": "torch_rolling60",
+      "file": "/home/firefly/Desktop/MMDL/board_test_sessions/smoke_diff_artifacts/board_probabilities_torch_rolling60.csv",
+      "windows": 362,
+      "label_match_rate": 0.2430939226519337,
+      "mean_abs_prob_diff_mean": 0.498574635259901,
+      "mean_abs_prob_diff_p50": 0.6568873452051776,
+      "mean_abs_prob_diff_p95": 0.6648783401929298,
+      "max_abs_prob_diff_mean": 0.7478619525044455,
+      "max_abs_prob_diff_p50": 0.9853310595499352,
+      "max_abs_prob_diff_p95": 0.9973174905211636,
+      "max_abs_prob_diff_max": 0.9977496552528464
+    },
+    {
+      "name": "librosa_rolling30",
+      "file": "/home/firefly/Desktop/MMDL/board_test_sessions/smoke_diff_artifacts/board_probabilities_librosa_rolling30.csv",
+      "windows": 362,
+      "label_match_rate": 0.2430939226519337,
+      "mean_abs_prob_diff_mean": 0.4989241738570591,
+      "mean_abs_prob_diff_p50": 0.6573726822292276,
+      "mean_abs_prob_diff_p95": 0.6648855758940044,
+      "max_abs_prob_diff_mean": 0.7483862604215207,
+      "max_abs_prob_diff_p50": 0.98605900129769,
+      "max_abs_prob_diff_p95": 0.9973283418563369,
+      "max_abs_prob_diff_max": 0.9977388576226076
+    },
+    {
+      "name": "torch_rolling30",
+      "file": "/home/firefly/Desktop/MMDL/board_test_sessions/smoke_diff_artifacts/board_probabilities_torch_rolling30.csv",
+      "windows": 362,
+      "label_match_rate": 0.2430939226519337,
+      "mean_abs_prob_diff_mean": 0.49900221968302366,
+      "mean_abs_prob_diff_p50": 0.6574695652379887,
+      "mean_abs_prob_diff_p95": 0.6648809177090395,
+      "max_abs_prob_diff_mean": 0.7485033298104722,
+      "max_abs_prob_diff_p50": 0.9862043666653335,
+      "max_abs_prob_diff_p95": 0.9973213672383281,
+      "max_abs_prob_diff_max": 0.9977337698364863
+    },
+    {
+      "name": "librosa_rolling10",
+      "file": "/home/firefly/Desktop/MMDL/board_test_sessions/smoke_diff_artifacts/board_probabilities_librosa_rolling10.csv",
+      "windows": 362,
+      "label_match_rate": 0.2430939226519337,
+      "mean_abs_prob_diff_mean": 0.4999462746859041,
+      "mean_abs_prob_diff_p50": 0.6582813428200704,
+      "mean_abs_prob_diff_p95": 0.6649576409061411,
+      "max_abs_prob_diff_mean": 0.7499194112420026,
+      "max_abs_prob_diff_p50": 0.9874220401979983,
+      "max_abs_prob_diff_p95": 0.9974364446945401,
+      "max_abs_prob_diff_max": 0.9981101726880297
+    },
+    {
+      "name": "torch_rolling10",
+      "file": "/home/firefly/Desktop/MMDL/board_test_sessions/smoke_diff_artifacts/board_probabilities_torch_rolling10.csv",
+      "windows": 362,
+      "label_match_rate": 0.2430939226519337,
+      "mean_abs_prob_diff_mean": 0.5000140552199837,
+      "mean_abs_prob_diff_p50": 0.6583878729531231,
+      "mean_abs_prob_diff_p95": 0.6649376387228888,
+      "max_abs_prob_diff_mean": 0.7500210833021113,
+      "max_abs_prob_diff_p50": 0.9875818069558591,
+      "max_abs_prob_diff_p95": 0.9974064175275998,
+      "max_abs_prob_diff_max": 0.998090443550609
+    },
+    {
+      "name": "librosa_window",
+      "file": "/home/firefly/Desktop/MMDL/board_test_sessions/smoke_diff_artifacts/board_probabilities_librosa_window.csv",
+      "windows": 362,
+      "label_match_rate": 0.2430939226519337,
+      "mean_abs_prob_diff_mean": 0.5005336164717963,
+      "mean_abs_prob_diff_p50": 0.6578264452024694,
+      "mean_abs_prob_diff_p95": 0.6649014830306745,
+      "max_abs_prob_diff_mean": 0.7508004255414059,
+      "max_abs_prob_diff_p50": 0.986739692161791,
+      "max_abs_prob_diff_p95": 0.9973522187541676,
+      "max_abs_prob_diff_max": 0.9977095581707545
+    },
+    {
+      "name": "torch_window",
+      "file": "/home/firefly/Desktop/MMDL/board_test_sessions/smoke_diff_artifacts/board_probabilities_torch_window.csv",
+      "windows": 362,
+      "label_match_rate": 0.2430939226519337,
+      "mean_abs_prob_diff_mean": 0.5005995713619408,
+      "mean_abs_prob_diff_p50": 0.65791666247848,
+      "mean_abs_prob_diff_p95": 0.6648983402061276,
+      "max_abs_prob_diff_mean": 0.7508993563835187,
+      "max_abs_prob_diff_p50": 0.9868750292807817,
+      "max_abs_prob_diff_p95": 0.9973475144724944,
+      "max_abs_prob_diff_max": 0.9977050037414301
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "sync_start_utc": "2026-03-20T14:40:31.678455Z",
+  "duration_sec_requested": 1200,
+  "duration_sec_captured": 235.0,
+  "runtime_sec": null,
+  "label": "no secretion",
+  "audio": {
+    "filename": "audio.wav",
+    "sample_rate_hz": 22050,
+    "channels": 1,
+    "dtype": "int16",
+    "num_frames": 5181750,
+    "input_device": "MAYA44USB Multichannel 4 (ESI A [MME]",
+    "input_device_name": "MAYA44USB Multichannel 4 (ESI A",
+    "input_device_id": 1,
+    "input_hostapi": "MME",
+    "selected_from": "repaired/trimmed_audio.wav",
+    "duration_sec_from_frames": 235.0
+  },
+  "daq": {
+    "filename": "daq.csv",
+    "device_name": "Dev1",
+    "sample_rate_hz": 100,
+    "pressure_channel": "Dev1/ai0",
+    "flow_channel": "Dev1/ai1",
+    "num_samples": 23501
+  },
+  "saved_files": {
+    "capture_dir": "/mnt/c/Users/Wangshuai/Desktop/MMDataset/MMDAQ/data/MMdata_235.00s_0320_224031_no_secretion",
+    "audio_wav": "/mnt/c/Users/Wangshuai/Desktop/MMDataset/MMDAQ/data/MMdata_235.00s_0320_224031_no_secretion/audio.wav",
+    "daq_csv": "/mnt/c/Users/Wangshuai/Desktop/MMDataset/MMDAQ/data/MMdata_235.00s_0320_224031_no_secretion/daq.csv",
+    "metadata_json": "/mnt/c/Users/Wangshuai/Desktop/MMDataset/MMDAQ/data/MMdata_235.00s_0320_224031_no_secretion/metadata.json"
+  },
+  "notes": "audio 和 daq 通过同一软件流程启动，属于软件同步，不是硬件时钟级同步。",
+  "source_original_dir": "/mnt/c/Users/Wangshuai/Desktop/MMDataset/MMDAQ/原始原始数据目录/MMdata_265.35s_0320_224031",
+  "folder_label_slug": "no_secretion",
+  "trimmed_after_sec": 235.0,
+  "trimmed_from_original_dir": "/mnt/c/Users/Wangshuai/Desktop/MMDataset/MMDAQ/data/MMdata_235.00s_0320_224031_no_secretion/_backup_before_trim_235s",
+  "consistency_checks": {
+    "audio_duration_sec": 235.0,
+    "daq_duration_sec": 235.0,
+    "audio_to_daq_duration_ratio": 1.0
+  }
+}

@@ -1,0 +1,12 @@
+onnxruntime
+pyyaml
+pyaudio
+pyserial
+
+# Preferred for training-consistent preprocessing
+torch
+torchaudio
+
+# Fallback preprocessing path if torch/torchaudio is unavailable
+librosa
+scipy
