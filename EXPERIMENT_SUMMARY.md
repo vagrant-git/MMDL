@@ -17,10 +17,10 @@
 | --- | ---: | ---: | --- |
 | `Audio-only PCEN96 HP80` | `0.7052 ± 0.0667` | `0.8296 ± 0.1362` | audio single-modality baseline |
 | `Pressure+Flow-only` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` | PQ-only baseline |
-| `HCAF-PCEN-DualXAttn` | `0.9196 ± 0.0469` | `0.8815 ± 0.0838` | current default model |
-| `HCAF-PCEN-DualXAttn without audio` | `0.8872 ± 0.0145` | `0.8815 ± 0.0838` | missing-audio ablation |
-| `HCAF-PCEN-DualXAttn without pressure` | `0.9379 ± 0.0221` | `0.9407 ± 0.0838` | missing-pressure ablation |
-| `HCAF-PCEN-DualXAttn without flow` | `0.8501 ± 0.1403` | `0.9407 ± 0.0838` | missing-flow ablation |
+| `HCAF-PCEN-DualXAttn` | `0.8225 ± 0.1681` | `0.8148 ± 0.2619` | current default model |
+| `HCAF-PCEN-DualXAttn without audio` | `0.7578 ± 0.1570` | `0.7333 ± 0.1257` | missing-audio ablation |
+| `HCAF-PCEN-DualXAttn without pressure` | `0.8932 ± 0.0968` | `0.9407 ± 0.0838` | missing-pressure ablation |
+| `HCAF-PCEN-DualXAttn without flow` | `0.9116 ± 0.0359` | `0.9407 ± 0.0838` | missing-flow ablation |
 
 ## Why This Model
 
@@ -29,14 +29,15 @@
 - 保留了最核心的 `PCEN96 + HP80` 音频前端
 - 保留了 `Pressure-Flow` 内部交互和 `audio-sensor` 双阶段 cross-attention
 - 保留了 `confidence-aware gate + expert residual`
-- 在统一证据表中，window-level macro-F1 同时高于 `audio_only` 和 `pressure_flow`
+- 它是当前仓库固定的正式默认口径
+- 其结果与配置文件 `configs/final_model_unified_evidence.yaml` 一一对应
 
 窗口级差值：
 
-- vs `audio_only`: `+0.2144`
-- vs `pressure_flow`: `+0.1697`
-- vs `minus_audio`: `+0.0324`
-- vs `minus_flow`: `+0.0695`
+- vs `audio_only`: `+0.1172`
+- vs `pressure_flow`: `+0.0725`
+- vs `minus_audio`: `+0.0646`
+- vs `minus_flow`: `-0.0891`
 
 ## Key Evidence
 

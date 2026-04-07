@@ -26,18 +26,18 @@
 | --- | ---: | ---: |
 | `Audio-only PCEN96 HP80` | `0.7052 ± 0.0667` | `0.8296 ± 0.1362` |
 | `Pressure+Flow-only` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
-| `HCAF-PCEN-DualXAttn` | `0.9196 ± 0.0469` | `0.8815 ± 0.0838` |
+| `HCAF-PCEN-DualXAttn` | `0.8225 ± 0.1681` | `0.8148 ± 0.2619` |
 
 当前结论：
 
-- 默认最佳模型仍明显优于 `audio_only` 和 `pressure_flow`
-- `PCEN` 当前仍建议与 `HP80` 一起保留
-- `confidence-aware gate + expert residual` 不建议继续删除
+- 当前默认模型的正式成绩以 `summary-MMmodel/final_model_unified_evidence` 为准
+- 历史 `0.9155 / 0.9196 / 0.9207` 结果不再作为默认模型引用
+- `PCEN96 + HP80`、`self_attention_layers = 0`、`use_summary_in_repr = false` 仍是当前默认配置
 
 ## Markdown Files
 
 - [`summary.md`](summary.md)
-  当前默认最佳模型的技术说明，适合先读。
+  当前默认模型的技术说明，适合先读。
 
 - [`MODEL_IDENTITY.md`](MODEL_IDENTITY.md)
   当前唯一正式默认模型的短声明，优先级最高。

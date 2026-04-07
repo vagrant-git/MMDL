@@ -1,6 +1,7 @@
 # 第四章结果整理：当前默认主模型统一为 `HCAF-PCEN-DualXAttn`
 
 > 权威声明：本仓库当前唯一正式默认模型是 `HCAF-PCEN-DualXAttn`，实验 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`，配置文件为 `configs/final_model_unified_evidence.yaml`。若本文件后文保留早期 `logmel` 路线讨论，那些内容仅作历史对照，不代表当前默认模型。
+> 当前默认模型的正式成绩固定为 `window macro-F1 = 0.8225 ± 0.1681`、`session macro-F1 = 0.8148 ± 0.2619`。本文件中其余 `0.9155 / 0.9196 / 0.9207` 等数值若出现，均应视为历史搜索记录，不再作为默认结果引用。
 
 ## 1. 本章采用的结果口径
 

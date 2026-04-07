@@ -8,7 +8,7 @@
 
 | name | experiment id | source | window macro-F1 | session macro-F1 |
 | --- | --- | --- | ---: | ---: |
-| `HCAF-PCEN-DualXAttn` | `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` | `summary-MMmodel/final_model_unified_evidence` | `0.9196 ± 0.0469` | `0.8815 ± 0.0838` |
+| `HCAF-PCEN-DualXAttn` | `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` | `summary-MMmodel/final_model_unified_evidence` | `0.8225 ± 0.1681` | `0.8148 ± 0.2619` |
 
 ## Unified Evidence
 
@@ -16,17 +16,17 @@
 | --- | ---: | ---: |
 | `Audio-only PCEN96 HP80` | `0.7052 ± 0.0667` | `0.8296 ± 0.1362` |
 | `Pressure+Flow-only` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
-| `HCAF-PCEN-DualXAttn` | `0.9196 ± 0.0469` | `0.8815 ± 0.0838` |
-| `HCAF-PCEN-DualXAttn without audio` | `0.8872 ± 0.0145` | `0.8815 ± 0.0838` |
+| `HCAF-PCEN-DualXAttn` | `0.8225 ± 0.1681` | `0.8148 ± 0.2619` |
+| `HCAF-PCEN-DualXAttn without audio` | `0.7578 ± 0.1570` | `0.7333 ± 0.1257` |
 | `HCAF-PCEN-DualXAttn without pressure` | `0.9379 ± 0.0221` | `0.9407 ± 0.0838` |
-| `HCAF-PCEN-DualXAttn without flow` | `0.8501 ± 0.1403` | `0.9407 ± 0.0838` |
-| `HCAF-PCEN-DualXAttn audio only` | `0.7119 ± 0.1377` | `0.7450 ± 0.2459` |
+| `HCAF-PCEN-DualXAttn without flow` | `0.9116 ± 0.0359` | `0.9407 ± 0.0838` |
+| `HCAF-PCEN-DualXAttn audio only` | `0.7086 ± 0.0726` | `0.7926 ± 0.1826` |
 
 Source:
 
 - [`summary-MMmodel/final_model_unified_evidence/overall_results.csv`](summary-MMmodel/final_model_unified_evidence/overall_results.csv)
 
-## Compression Search
+## Historical Search Records
 
 | model | window macro-F1 | session macro-F1 |
 | --- | ---: | ---: |
@@ -65,6 +65,6 @@ Source:
 
 ## Default Recommendation
 
-- 当前默认最佳模型使用 `HCAF-PCEN-DualXAttn`
-- 当前不建议删除 `HP80`
-- 当前不建议删除 `confidence-aware gate + expert residual`
+- 当前默认模型使用 `HCAF-PCEN-DualXAttn`
+- 当前正式成绩只引用 `summary-MMmodel/final_model_unified_evidence`
+- 历史搜索表保留作补充，不再与默认结果混写
