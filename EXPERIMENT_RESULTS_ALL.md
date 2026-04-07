@@ -1,14 +1,14 @@
 # All Experiment Results
 
-当前默认模型展示名为 `HCAF-PCEN-DualXAttn`，对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。
+当前默认模型展示名为 `HCAF-PCEN-DualXAttn`，当前实现 / 部署对齐配置名为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。
 
-唯一正式默认模型的短声明见 [MODEL_IDENTITY.md](/home/wangshuai/MMDL/MODEL_IDENTITY.md)。
+唯一正式默认模型的短声明见 [MODEL_IDENTITY.md](/home/oi/MMDL/MODEL_IDENTITY.md)。
 
 ## Current Default
 
 | name | experiment id | source | window macro-F1 | session macro-F1 |
 | --- | --- | --- | ---: | ---: |
-| `HCAF-PCEN-DualXAttn` | `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` | `summary-MMmodel/final_model_unified_evidence` | `0.8225 ± 0.1681` | `0.8148 ± 0.2619` |
+| `HCAF-PCEN-DualXAttn` | `hcaf_comp_sa0_no_summary_5s` | `outputs/hcaf_confgate_compression_search` | `0.9155 ± 0.0133` | `0.9407 ± 0.0838` |
 
 ## Unified Evidence
 
@@ -16,14 +16,15 @@
 | --- | ---: | ---: |
 | `Audio-only PCEN96 HP80` | `0.7052 ± 0.0667` | `0.8296 ± 0.1362` |
 | `Pressure+Flow-only` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
-| `HCAF-PCEN-DualXAttn` | `0.8225 ± 0.1681` | `0.8148 ± 0.2619` |
+| `HCAF-PCEN-DualXAttn` | `0.9155 ± 0.0133` | `0.9407 ± 0.0838` |
 | `HCAF-PCEN-DualXAttn without audio` | `0.7578 ± 0.1570` | `0.7333 ± 0.1257` |
-| `HCAF-PCEN-DualXAttn without pressure` | `0.9379 ± 0.0221` | `0.9407 ± 0.0838` |
+| `HCAF-PCEN-DualXAttn without pressure` | `0.8932 ± 0.0968` | `0.9407 ± 0.0838` |
 | `HCAF-PCEN-DualXAttn without flow` | `0.9116 ± 0.0359` | `0.9407 ± 0.0838` |
 | `HCAF-PCEN-DualXAttn audio only` | `0.7086 ± 0.0726` | `0.7926 ± 0.1826` |
 
 Source:
 
+- [`outputs/hcaf_confgate_compression_search/overall_results.csv`](outputs/hcaf_confgate_compression_search/overall_results.csv)
 - [`summary-MMmodel/final_model_unified_evidence/overall_results.csv`](summary-MMmodel/final_model_unified_evidence/overall_results.csv)
 
 ## Historical Search Records
@@ -66,5 +67,5 @@ Source:
 ## Default Recommendation
 
 - 当前默认模型使用 `HCAF-PCEN-DualXAttn`
-- 当前正式成绩只引用 `summary-MMmodel/final_model_unified_evidence`
-- 历史搜索表保留作补充，不再与默认结果混写
+- 当前完整模型正式成绩只引用 `outputs/hcaf_confgate_compression_search`
+- `summary-MMmodel/final_model_unified_evidence` 保留作缺失模态和部署补充证据

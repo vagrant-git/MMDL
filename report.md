@@ -1,11 +1,11 @@
 # 第四章结果整理：当前默认主模型统一为 `HCAF-PCEN-DualXAttn`
 
-> 权威声明：本仓库当前唯一正式默认模型是 `HCAF-PCEN-DualXAttn`，实验 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`，配置文件为 `configs/final_model_unified_evidence.yaml`。若本文件后文保留早期 `logmel` 路线讨论，那些内容仅作历史对照，不代表当前默认模型。
-> 当前默认模型的正式成绩固定为 `window macro-F1 = 0.8225 ± 0.1681`、`session macro-F1 = 0.8148 ± 0.2619`。本文件中其余 `0.9155 / 0.9196 / 0.9207` 等数值若出现，均应视为历史搜索记录，不再作为默认结果引用。
+> 权威声明：本仓库当前唯一正式默认模型是 `HCAF-PCEN-DualXAttn`，对应结构为 `PCEN96 + HP80 + SA=0 + no-summary + confidence-aware gate + expert residual`。若本文件后文保留早期 `logmel` 路线、`final_model_unified_evidence` 补实验或其他 dated 迭代记录，那些内容仅作历史过程对照，不代表当前默认模型的最终成绩。
+> 当前默认模型统一引用的完整模型正式成绩固定为 `window macro-F1 = 0.9155 ± 0.0133`、`session macro-F1 = 0.9407 ± 0.0838`。`0.8225 ± 0.1681` 那组结果仅表示一次去掉关键增益后的补实验表现，不再作为默认结果引用。
 
 ## 1. 本章采用的结果口径
 
-- 本章当前默认口径统一围绕当前默认多模态模型 `HCAF-PCEN-DualXAttn` 展开，其对应实验配置 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。
+- 本章当前默认口径统一围绕当前默认多模态模型 `HCAF-PCEN-DualXAttn` 展开，其当前实现 / 部署对齐配置名为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。
 - 其中 `hcaf_confgate_residual_5s` 作为上一版 best，用于说明融合结构本身已经优于普通多模态；`hcaf_confgate_residual_logmel96_sa0_nosummary_5s` 仅作为历史 `logmel` 对照；`hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` 才是当前唯一正式默认模型。
 - 所有实验均采用 `0 / 2 / 4` 三分类任务，且遵循先按 `session` 分组、再切 `5 s` 窗口的 grouped CV 原则，避免窗口泄漏。
 - 主结果、机制消融、缺失模态鲁棒性分别来自三组独立配置；引用时应按各自配置内的对比关系解读，不跨不同轮次混用数值。
@@ -2184,11 +2184,11 @@ conda run -n dl python analyze_breath_cycles.py
 1. concat 后的 joint self-attention
 2. 表示层中的 `summary` 残差
 
-在随后补跑完成的统一证据配置 `configs/final_model_unified_evidence.yaml` 中，这一当前默认结构被正式记为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`。其统一结果为：
+在随后完成的压缩搜索与补充证据汇总后，这一当前默认结构被统一记为 `SA=0 + no-summary` 主线。其当前正式完整模型结果为：
 
 - `audio_only_pcen96hp80_5s`: `0.7052 ± 0.0667`
 - `pressure_flow_5s`: `0.7499 ± 0.2513`
-- `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`: `0.9196 ± 0.0469`
+- `hcaf_comp_sa0_no_summary_5s`: `0.9155 ± 0.0133`
 
 这说明在当前正式口径下，当前默认最佳模型仍然明显高于音频单模态与 PQ-only 双模态基线，因此将其升格为默认最佳模型是成立的。
 

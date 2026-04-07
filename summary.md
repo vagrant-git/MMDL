@@ -1,6 +1,6 @@
 # 当前默认模型技术说明（统一口径）
 
-> 权威声明：本仓库当前唯一正式默认模型是 `HCAF-PCEN-DualXAttn`，实验 ID 为 `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`，配置文件为 `configs/final_model_unified_evidence.yaml`。如果你在本文件后文或其他历史文档中看到 `HCAF-LogMel96-DualXAttn`，那是旧口径，不再作为默认模型。统一说明见 [MODEL_IDENTITY.md](/home/wangshuai/MMDL/MODEL_IDENTITY.md)。
+> 权威声明：本仓库当前唯一正式默认模型是 `HCAF-PCEN-DualXAttn`。其模型身份仍对应 `PCEN96 + HP80 + SA=0 + no-summary + confidence-aware gate + expert residual` 这套结构；完整模型正式成绩统一引用 `outputs/hcaf_confgate_compression_search` 中的 `hcaf_comp_sa0_no_summary_5s`。统一说明见 [MODEL_IDENTITY.md](/home/oi/MMDL/MODEL_IDENTITY.md)。
 
 ## 1. 模型身份
 
@@ -13,7 +13,8 @@
 - fusion: `PQ cross-attention + audio-sensor cross-attention + confidence-aware gate + expert residual`
 - primary metric: `window macro-F1`
 - main_config: `configs/final_model_unified_evidence.yaml`
-- main_result_dir: `summary-MMmodel/final_model_unified_evidence`
+- canonical_full_result_dir: `outputs/hcaf_confgate_compression_search`
+- supplementary_result_dir: `summary-MMmodel/final_model_unified_evidence`
 
 当前默认结构额外做了一个部署侧调整：
 
@@ -21,7 +22,7 @@
 - `use_summary_in_repr = false`
 - 即保留 `PQ <-> audio` 双向 cross-attention，但去掉 concat 之后的 joint self-attention，同时不再使用 `Mean(token) + summary` 的表示构造
 - 这样做是为了减少计算量与结构冗余
-- 在最终统一证据表里，这个当前默认结构的 window macro-F1 为 `0.8225 ± 0.1681`，session macro-F1 为 `0.8148 ± 0.2619`
+- 当前文档统一引用的完整模型正式成绩为：window macro-F1 `0.9155 ± 0.0133`，session macro-F1 `0.9407 ± 0.0838`
 - 因此它是当前文档与论文应统一引用的默认结构
 - 下文如果出现旧的 `logmel` 版本，均视为历史对照，不再覆盖本节定义的默认模型
 
@@ -35,7 +36,7 @@
 
 当前统一口径仅要求“默认模型身份”和“默认模型成绩”保持一致，不再混用早期搜索结果。基于当前正式结果：
 
-- window-level macro-F1 为 `0.8225 ± 0.1681`
+- window-level macro-F1 为 `0.9155 ± 0.0133`
 - 相比 `audio_only` 的 `0.7052 ± 0.0667` 仍有提升
 - 相比 `pressure_flow` 的 `0.7499 ± 0.2513` 仍有提升
 
@@ -87,16 +88,16 @@
 | --- | ---: | ---: |
 | `audio_only_pcen96hp80_5s` | `0.7052 ± 0.0667` | `0.8296 ± 0.1362` |
 | `pressure_flow_5s` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
-| `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` | `0.8225 ± 0.1681` | `0.8148 ± 0.2619` |
+| `hcaf_comp_sa0_no_summary_5s` | `0.9155 ± 0.0133` | `0.9407 ± 0.0838` |
 
 当前默认模型相对主对照的窗口级差值：
 
-- `multimodal - audio_only = +0.1172`
-- `multimodal - pressure_flow = +0.0725`
+- `multimodal - audio_only = +0.2103`
+- `multimodal - pressure_flow = +0.1656`
 
 因此当前默认模型的主结论是：
 
-> 当前默认模型在文档中统一记为 `HCAF-PCEN-DualXAttn`。它保留 `PCEN96 + HP80`、双阶段 cross-attention、`confidence-aware gate + expert residual` 这三组核心机制，并在 `summary-MMmodel/final_model_unified_evidence` 中对应 `0.8225 ± 0.1681` 的 window-level macro-F1 与 `0.8148 ± 0.2619` 的 session-level macro-F1。后续文档不再混用早期 `0.9155 / 0.9196 / 0.9207` 的历史结果。
+> 当前默认模型在文档中统一记为 `HCAF-PCEN-DualXAttn`。它保留 `PCEN96 + HP80`、双阶段 cross-attention、`confidence-aware gate + expert residual` 这三组核心机制，并统一对应 `0.9155 ± 0.0133` 的 window-level macro-F1 与 `0.9407 ± 0.0838` 的 session-level macro-F1。缺失模态等补充对照可继续引用 `summary-MMmodel/final_model_unified_evidence`，但不再覆盖完整模型正式成绩。
 
 ### 3.1 最终模型与前端对照结论
 
@@ -104,7 +105,7 @@
 
 | variant | window macro-F1 | interpretation |
 | --- | ---: | --- |
-| `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s` | `0.8225 ± 0.1681` | 当前唯一正式默认模型 |
+| `hcaf_comp_sa0_no_summary_5s` | `0.9155 ± 0.0133` | 当前唯一正式默认模型 |
 | `hcaf_confgate_residual_logmel96_sa0_nosummary_5s` | `0.8816 ± 0.0664` | 历史 `logmel` 对照，不再作为默认模型 |
 
 这说明：
@@ -121,9 +122,9 @@
 - `SA=0 + PCEN96 nofilter`：`0.8891 ± 0.0644`
 - `SA=0 + simplegate`：`0.8307 ± 0.0650`
 
-因此，当前文档中的默认模型身份应固定为 `PCEN96 + HP80`、`confidence-aware gate + expert residual`、`self_attention_layers = 0`、`use_summary_in_repr = false` 这一配置；补充搜索结果仅作为历史对照，不再覆盖默认模型的正式成绩。
+因此，当前文档中的默认模型身份应固定为 `PCEN96 + HP80`、`confidence-aware gate + expert residual`、`self_attention_layers = 0`、`use_summary_in_repr = false` 这一配置；其中 `SA=0 + no-summary` 的正式完整模型成绩统一记为 `0.9155 ± 0.0133 / 0.9407 ± 0.0838`，其余补充实验仅作为对照，不再覆盖默认模型的正式成绩。
 
-结构裁剪补充实验结果索引见 [PARTIAL_RESULTS.md](/home/wangshuai/MMDL/outputs/hcaf_confgate_compression_search/PARTIAL_RESULTS.md)，当前默认模型的统一正式结果见 [overall_results.csv](/home/wangshuai/MMDL/summary-MMmodel/final_model_unified_evidence/overall_results.csv)。
+结构裁剪补充实验结果索引见 [PARTIAL_RESULTS.md](/home/oi/MMDL/outputs/hcaf_confgate_compression_search/PARTIAL_RESULTS.md)，当前默认模型的完整正式结果见 [overall_results.csv](/home/oi/MMDL/outputs/hcaf_confgate_compression_search/overall_results.csv)。缺失模态等补充证据见 [overall_results.csv](/home/oi/MMDL/summary-MMmodel/final_model_unified_evidence/overall_results.csv)。
 
 ## 4. 模型结构
 

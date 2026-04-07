@@ -1,14 +1,15 @@
 # MMDL
 
-多模态液体体积分类实验仓库。当前默认主线已经统一切到论文展示名 `HCAF-PCEN-DualXAttn`。
+多模态液体体积分类实验仓库。当前默认主线已经统一到论文展示名 `HCAF-PCEN-DualXAttn`。
 
-唯一正式默认模型说明见 [MODEL_IDENTITY.md](/home/wangshuai/MMDL/MODEL_IDENTITY.md)。如果其他文档里还有旧的 `logmel` 表述，以该文件和本页为准。
+唯一正式默认模型说明见 [MODEL_IDENTITY.md](/home/oi/MMDL/MODEL_IDENTITY.md)。如果其他文档里还有旧的 `logmel` 表述或把 `0.8225` 写成默认结果，以该文件和本页为准。
 
-- experiment id: `hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s`
+- experiment lineage: `SA=0 + no-summary`
 - task: `0 / 2 / 4` 三分类
 - default metric: `window macro-F1`
-- current default config: `configs/final_model_unified_evidence.yaml`
-- current default result dir: `summary-MMmodel/final_model_unified_evidence`
+- aligned runtime config: `configs/final_model_unified_evidence.yaml`
+- canonical full-model result dir: `outputs/hcaf_confgate_compression_search`
+- supplementary evidence dir: `summary-MMmodel/final_model_unified_evidence`
 
 ## Current Default
 
@@ -16,9 +17,7 @@
 - audio frontend: `PCEN96 + HP80`
 - interaction: `PQ cross-attention + audio-sensor cross-attention`
 - decision: `confidence-aware gate + expert residual`
-- compression choices:
-  - `self_attention_layers = 0`
-  - `use_summary_in_repr = false`
+- compression: `self_attention_layers = 0`, `use_summary_in_repr = false`
 
 ## Main Result
 
@@ -26,48 +25,13 @@
 | --- | ---: | ---: |
 | `Audio-only PCEN96 HP80` | `0.7052 ± 0.0667` | `0.8296 ± 0.1362` |
 | `Pressure+Flow-only` | `0.7499 ± 0.2513` | `0.8519 ± 0.2095` |
-| `HCAF-PCEN-DualXAttn` | `0.8225 ± 0.1681` | `0.8148 ± 0.2619` |
+| `HCAF-PCEN-DualXAttn` | `0.9155 ± 0.0133` | `0.9407 ± 0.0838` |
 
 当前结论：
 
-- 当前默认模型的正式成绩以 `summary-MMmodel/final_model_unified_evidence` 为准
-- 历史 `0.9155 / 0.9196 / 0.9207` 结果不再作为默认模型引用
+- 当前默认模型的完整模型正式成绩统一引用 `outputs/hcaf_confgate_compression_search`
+- `summary-MMmodel/final_model_unified_evidence` 继续作为缺失模态和部署对齐的补充证据目录
 - `PCEN96 + HP80`、`self_attention_layers = 0`、`use_summary_in_repr = false` 仍是当前默认配置
-
-## Markdown Files
-
-- [`summary.md`](summary.md)
-  当前默认模型的技术说明，适合先读。
-
-- [`MODEL_IDENTITY.md`](MODEL_IDENTITY.md)
-  当前唯一正式默认模型的短声明，优先级最高。
-
-- [`EXPERIMENT_SUMMARY.md`](EXPERIMENT_SUMMARY.md)
-  当前默认结果的最短摘要，适合快速确认主结论。
-
-- [`EXPERIMENT_RESULTS_ALL.md`](EXPERIMENT_RESULTS_ALL.md)
-  顶层实验总表，汇总当前已整理结果。
-
-- [`report.md`](report.md)
-  完整实验过程记录，适合回查“为什么这样改”和“哪些方向已被否定”。
-
-- [`thesis_model_architecture_draft.md`](thesis_model_architecture_draft.md)
-  面向论文正文的结构说明草稿。
-
-## Repository Guide
-
-```text
-MMDL/
-├── configs/
-├── mmdl_baseline/
-├── outputs/
-├── summary-MMmodel/
-├── summary.md
-├── EXPERIMENT_SUMMARY.md
-├── EXPERIMENT_RESULTS_ALL.md
-├── report.md
-└── thesis_model_architecture_draft.md
-```
 
 ## Quick Start
 
