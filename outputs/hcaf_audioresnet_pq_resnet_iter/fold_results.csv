@@ -1,4 +1,0 @@
-experiment,display_name,group,fold,window_accuracy,window_macro_f1,window_precision,window_recall,best_session_method,session_accuracy,session_macro_f1,session_precision,session_recall,best_epoch
-hcaf_audio_r18img_pq_r18_longtokens_attn2_5s,Audio R18 ImageNet + PQ R18 long tokens + attn2,main,repeat1_fold1,0.8179591836734694,0.8127806106769211,0.8974861562802144,0.816006600660066,majority_voting,0.8333333333333334,0.8222222222222223,0.8888888888888888,0.8333333333333334,8
-hcaf_audio_r18img_pq_r18_longtokens_attn2_5s,Audio R18 ImageNet + PQ R18 long tokens + attn2,main,repeat1_fold2,0.9320046893317703,0.9112234783948253,0.9397163120567376,0.9022030913551345,majority_voting,1.0,1.0,1.0,1.0,5
-hcaf_audio_r18img_pq_r18_longtokens_attn2_5s,Audio R18 ImageNet + PQ R18 long tokens + attn2,main,repeat1_fold3,0.9714673913043478,0.9738693631989449,0.9781025800633644,0.9706324809171641,majority_voting,1.0,1.0,1.0,1.0,7

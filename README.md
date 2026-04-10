@@ -2,7 +2,7 @@
 
 多模态液体体积分类实验仓库。当前默认主线已经统一到论文展示名 `HCAF-PCEN-DualXAttn`。
 
-唯一正式默认模型说明见 [MODEL_IDENTITY.md](/home/oi/MMDL/MODEL_IDENTITY.md)。如果其他文档里还有旧的 `logmel` 表述或把 `0.8225` 写成默认结果，以该文件和本页为准。
+当前仓库默认结果口径以本页和 [4.3.md](/home/oi/MMDL/thesis/4.3.md) 为准。如果其他文档里还有旧的 `logmel` 表述或把 `0.8225` 写成默认结果，以这里为准。
 
 - experiment lineage: `SA=0 + no-summary`
 - task: `0 / 2 / 4` 三分类
@@ -36,7 +36,5 @@
 ## Quick Start
 
 ```bash
-source /home/oi/miniforge3/etc/profile.d/conda.sh
-conda activate dl
-python summary_mmmodel_experiments.py --config configs/final_model_unified_evidence.yaml
+./run_train.sh
 ```

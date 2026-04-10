@@ -1,7 +1,7 @@
 seed: 20260330
 data_root: data
-output_root: summary-MMmodel/hcaf_resnet_imagenet
-summary_markdown: summary-MMmodel/hcaf_resnet_imagenet/EXPERIMENT_SUMMARY.md
+output_root: outputs/hcaf_confgate_compression_search
+summary_markdown: outputs/hcaf_confgate_compression_search/EXPERIMENT_SUMMARY.md
 split_manifest_source: summary-MMmodel/pq_vs_multimodal_check/split_manifest.json
 
 session_filter:
@@ -65,71 +65,82 @@ audio_frontend:
   highpass_hz: 80.0
 
 report:
-  primary_experiment: hcaf_pcen_base_5s
-  baseline_experiment: hcaf_pcen_base_5s
+  primary_experiment: hcaf_comp_sa0_base_5s
+  baseline_experiment: hcaf_comp_sa0_base_5s
   main_experiment_names:
-    - hcaf_pcen_base_5s
-    - hcaf_resnet18_scratch_5s
-    - hcaf_resnet18_imagenet_5s
-    - hcaf_resnet34_scratch_5s
-    - hcaf_resnet34_imagenet_5s
+    - hcaf_comp_sa0_base_5s
+    - hcaf_comp_sa0_no_summary_5s
+    - hcaf_comp_sa0_summary_token_5s
+    - hcaf_comp_sa0_pcen64_hp80_5s
+    - hcaf_comp_sa0_pcen96_nofilter_5s
+    - hcaf_comp_sa0_simplegate_5s
   window_experiment_names: []
   ablation_experiment_names: []
 
 main_experiments:
-  - name: hcaf_pcen_base_5s
-    display_name: HCAF PCEN base
+  - name: hcaf_comp_sa0_base_5s
+    display_name: HCAF compressed base SA0 PCEN96 HP80
     modality: multimodal
     window_sec: 5.0
     group: main
 
-  - name: hcaf_resnet18_scratch_5s
-    display_name: HCAF audio ResNet18 scratch
+  - name: hcaf_comp_sa0_no_summary_5s
+    display_name: HCAF compressed SA0 without summary repr
     modality: multimodal
     window_sec: 5.0
     group: main
     model_overrides:
       models:
         multimodal:
-          audio_encoder_type: resnet18
-          audio_pretrained: false
-          sensor_encoder_type: resnet18
+          use_summary_in_repr: false
 
-  - name: hcaf_resnet18_imagenet_5s
-    display_name: HCAF audio ResNet18 ImageNet
+  - name: hcaf_comp_sa0_summary_token_5s
+    display_name: HCAF compressed SA0 summary token attention
     modality: multimodal
     window_sec: 5.0
     group: main
     model_overrides:
       models:
         multimodal:
-          audio_encoder_type: resnet18
-          audio_pretrained: true
-          sensor_encoder_type: resnet18
+          use_summary_in_repr: false
+          use_summary_token_in_attention: true
 
-  - name: hcaf_resnet34_scratch_5s
-    display_name: HCAF audio ResNet34 scratch
+  - name: hcaf_comp_sa0_pcen64_hp80_5s
+    display_name: HCAF compressed SA0 PCEN64 HP80
+    modality: multimodal
+    window_sec: 5.0
+    group: main
+    config_overrides:
+      audio_frontend:
+        feature_type: pcen
+        n_mels: 64
+        f_min: 80.0
+        f_max: 6000.0
+        highpass_hz: 80.0
+
+  - name: hcaf_comp_sa0_pcen96_nofilter_5s
+    display_name: HCAF compressed SA0 PCEN96 no filter
+    modality: multimodal
+    window_sec: 5.0
+    group: main
+    config_overrides:
+      audio_frontend:
+        feature_type: pcen
+        n_mels: 96
+        f_min: 80.0
+        f_max: 6000.0
+        highpass_hz: null
+
+  - name: hcaf_comp_sa0_simplegate_5s
+    display_name: HCAF compressed SA0 simple gate no expert residual
     modality: multimodal
     window_sec: 5.0
     group: main
     model_overrides:
       models:
         multimodal:
-          audio_encoder_type: resnet34
-          audio_pretrained: false
-          sensor_encoder_type: resnet34
-
-  - name: hcaf_resnet34_imagenet_5s
-    display_name: HCAF audio ResNet34 ImageNet
-    modality: multimodal
-    window_sec: 5.0
-    group: main
-    model_overrides:
-      models:
-        multimodal:
-          audio_encoder_type: resnet34
-          audio_pretrained: true
-          sensor_encoder_type: resnet34
+          confidence_aware_gate: false
+          expert_residual_scale: 0.0
 
 window_length_experiments: []
 ablation_experiments: []
@@ -150,11 +161,8 @@ models:
     final_fusion_method: softmax_gate
     audio_token_frames: 12
     sensor_token_length: 16
-    self_attention_layers: 1
+    self_attention_layers: 0
     audio_in_channels: 1
-    audio_encoder_type: basic
-    audio_pretrained: false
-    sensor_encoder_type: tcn
     legacy_shared_sensor_norm: false
     confidence_aware_gate: true
     expert_residual_scale: 0.3

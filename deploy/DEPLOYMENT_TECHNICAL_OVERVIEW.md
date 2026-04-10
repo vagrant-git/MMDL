@@ -213,8 +213,7 @@ During PC-side validation, this fallback path was observed to produce noticeably
 
 A self-contained board deployment package was prepared:
 
-- `rk3588_bundle/`
-- `rk3588_bundle.tar.gz`
+- `deploy/rk3588_bundle/`
 
 This package contains:
 

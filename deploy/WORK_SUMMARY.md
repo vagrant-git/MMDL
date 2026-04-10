@@ -133,17 +133,16 @@
 
 已生成板端部署包：
 
-- [rk3588_bundle](/home/oi/MMDL/rk3588_bundle)
-- [rk3588_bundle.tar.gz](/home/oi/MMDL/rk3588_bundle.tar.gz)
+- [rk3588_bundle](/home/oi/MMDL/deploy/rk3588_bundle)
 
 主要内容包括：
 
-- [README.md](/home/oi/MMDL/rk3588_bundle/README.md)
-- [requirements_board.txt](/home/oi/MMDL/rk3588_bundle/requirements_board.txt)
-- [RUN_ON_BOARD.sh](/home/oi/MMDL/rk3588_bundle/RUN_ON_BOARD.sh)
-- [hcaf_pcen_dualxattn.onnx](/home/oi/MMDL/rk3588_bundle/models/hcaf_pcen_dualxattn.onnx)
-- [final_model_unified_evidence.yaml](/home/oi/MMDL/rk3588_bundle/configs/final_model_unified_evidence.yaml)
-- [demo_multimodal.py](/home/oi/MMDL/rk3588_bundle/runtime/demo_multimodal.py)
+- [README.md](/home/oi/MMDL/deploy/rk3588_bundle/README.md)
+- [requirements_board.txt](/home/oi/MMDL/deploy/rk3588_bundle/requirements_board.txt)
+- [RUN_ON_BOARD.sh](/home/oi/MMDL/deploy/rk3588_bundle/RUN_ON_BOARD.sh)
+- [hcaf_pcen_dualxattn.onnx](/home/oi/MMDL/deploy/rk3588_bundle/models/hcaf_pcen_dualxattn.onnx)
+- [final_model_unified_evidence.yaml](/home/oi/MMDL/deploy/rk3588_bundle/configs/final_model_unified_evidence.yaml)
+- [demo_multimodal.py](/home/oi/MMDL/deploy/rk3588_bundle/runtime/demo_multimodal.py)
 
 这个目录的目标是：
 
@@ -168,7 +167,7 @@
 
 建议按以下顺序继续推进：
 
-1. 将 [rk3588_bundle](/home/oi/MMDL/rk3588_bundle) 整体拷到 RK3588 板子。
+1. 将 [rk3588_bundle](/home/oi/MMDL/deploy/rk3588_bundle) 整体拷到 RK3588 板子。
 2. 在板子上安装 `requirements_board.txt` 中的依赖。
 3. 准备好原有项目中的 `R_Identification/params.json`。
 4. 在板子上运行 `runtime/demo_multimodal.py`。

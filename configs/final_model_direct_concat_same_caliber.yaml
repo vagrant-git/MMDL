@@ -5,8 +5,7 @@ summary_markdown: summary-MMmodel/final_model_direct_concat_same_caliber/EXPERIM
 split_manifest_source: summary-MMmodel/pq_vs_multimodal_check/split_manifest.json
 
 session_filter:
-  exclude_session_ids:
-    - "MMdata_265.10s_0322_224132_no_secretion"
+  exclude_session_ids: []
 
 task:
   class_subset: [0, 2, 4]

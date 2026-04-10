@@ -1,7 +1,8 @@
-seed: 20260329
+seed: 20260330
 data_root: data
-output_root: summary-MMmodel
-summary_markdown: summary-MMmodel/EXPERIMENT_SUMMARY.md
+output_root: summary-MMmodel/final_model_unified_evidence
+summary_markdown: summary-MMmodel/final_model_unified_evidence/EXPERIMENT_SUMMARY.md
+split_manifest_source: summary-MMmodel/pq_vs_multimodal_check/split_manifest.json
 
 session_filter:
   exclude_session_ids: []
@@ -38,19 +39,17 @@ audio_n_mels: 64
 audio_n_fft: 1024
 audio_hop_length: 160
 audio_win_length: 400
-min_window_sec: 5.0
 pad_short_recording: false
 
 batch_size: 16
 num_workers: 0
-epochs: 10
+epochs: 8
 learning_rate: 0.001
 weight_decay: 0.0001
 weighted_sampler: true
 class_weight: false
 loss: cross_entropy
-focal_gamma: 2.0
-early_stop_patience: 4
+early_stop_patience: 3
 grad_clip_norm: 3.0
 
 grouped_cv:
@@ -58,106 +57,89 @@ grouped_cv:
   n_repeats: 1
   val_fraction_of_train: 0.25
 
+audio_frontend:
+  feature_type: pcen
+  n_mels: 96
+  f_min: 80.0
+  f_max: 6000.0
+  highpass_hz: 80.0
+
 report:
-  primary_experiment: hcaf_net_5s
-  baseline_experiment: gated_baseline_5s
+  primary_experiment: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
+  baseline_experiment: pressure_flow_5s
   main_experiment_names:
-    - audio_only_5s
+    - audio_only_pcen96hp80_5s
     - pressure_flow_5s
-    - gated_baseline_5s
-    - hcaf_net_5s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
   window_experiment_names:
-    - hcaf_net_5s
-    - hcaf_net_10s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
   ablation_experiment_names:
-    - hcaf_net_5s
-    - hcaf_net_minus_audio_5s
-    - hcaf_net_minus_pressure_5s
-    - hcaf_net_minus_flow_5s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_audio_5s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_pressure_5s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_flow_5s
+    - hcaf_confgate_residual_pcen96hp80_sa0_nosummary_audio_only_5s
 
 main_experiments:
-  - name: audio_only_5s
-    display_name: Audio-only
+  - name: audio_only_pcen96hp80_5s
+    display_name: Audio-only PCEN96 HP80
     modality: audio_only
     window_sec: 5.0
     group: main
+
   - name: pressure_flow_5s
     display_name: Pressure+Flow-only
     modality: pressure_flow
     window_sec: 5.0
     group: main
-  - name: gated_baseline_5s
-    display_name: Gated Fusion Baseline
+
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
+    display_name: HCAF-PCEN-DualXAttn
     modality: multimodal
     window_sec: 5.0
     group: main
-  - name: hcaf_net_5s
-    display_name: HCAF-Net
-    modality: multimodal
-    window_sec: 5.0
-    group: main
-    model_overrides:
-      models:
-        multimodal:
-          model_type: hcaf_net
 
 window_length_experiments:
-  - name: hcaf_net_5s
-    display_name: HCAF-Net 5 s
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
+    display_name: HCAF-PCEN-DualXAttn 5 s
     modality: multimodal
     window_sec: 5.0
     group: window
-    model_overrides:
-      models:
-        multimodal:
-          model_type: hcaf_net
-  - name: hcaf_net_10s
-    display_name: HCAF-Net 10 s
-    modality: multimodal
-    window_sec: 10.0
-    group: window
-    model_overrides:
-      models:
-        multimodal:
-          model_type: hcaf_net
 
 ablation_experiments:
-  - name: hcaf_net_5s
-    display_name: HCAF-Net full
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_5s
+    display_name: HCAF-PCEN-DualXAttn
     modality: multimodal
     window_sec: 5.0
     group: ablation
-    model_overrides:
-      models:
-        multimodal:
-          model_type: hcaf_net
-  - name: hcaf_net_minus_audio_5s
-    display_name: HCAF-Net without audio
+
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_audio_5s
+    display_name: HCAF final compressed without audio
     modality: multimodal_minus_audio
     window_sec: 5.0
     group: ablation
-    model_overrides:
-      models:
-        multimodal:
-          model_type: hcaf_net
-  - name: hcaf_net_minus_pressure_5s
-    display_name: HCAF-Net without pressure
+
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_pressure_5s
+    display_name: HCAF final compressed without pressure
     modality: multimodal_minus_pressure
     window_sec: 5.0
     group: ablation
-    model_overrides:
-      models:
-        multimodal:
-          model_type: hcaf_net
-  - name: hcaf_net_minus_flow_5s
-    display_name: HCAF-Net without flow
+
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_minus_flow_5s
+    display_name: HCAF final compressed without flow
     modality: multimodal_minus_flow
+    window_sec: 5.0
+    group: ablation
+
+  - name: hcaf_confgate_residual_pcen96hp80_sa0_nosummary_audio_only_5s
+    display_name: HCAF final compressed audio only
+    modality: multimodal
     window_sec: 5.0
     group: ablation
     model_overrides:
       models:
         multimodal:
-          model_type: hcaf_net
+          enabled_modalities: ["audio"]
 
 models:
   audio_only:
@@ -174,7 +156,7 @@ models:
     fusion_method: gated
   multimodal:
     architecture: advanced
-    model_type: legacy
+    model_type: hcaf_net
     dropout: 0.3
     audio_base_channels: 16
     sensor_base_channels: 16
@@ -187,4 +169,9 @@ models:
     final_fusion_method: softmax_gate
     audio_token_frames: 12
     sensor_token_length: 16
-    self_attention_layers: 1
+    self_attention_layers: 0
+    use_summary_in_repr: false
+    audio_in_channels: 1
+    legacy_shared_sensor_norm: false
+    confidence_aware_gate: true
+    expert_residual_scale: 0.3

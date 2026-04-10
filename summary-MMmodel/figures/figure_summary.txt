@@ -1,3 +1,0 @@
-Generated chapter-4 figures.
-Current best vs previous HCAF gain: 0.0593
-Current best vs PQ-only gain: 0.0889

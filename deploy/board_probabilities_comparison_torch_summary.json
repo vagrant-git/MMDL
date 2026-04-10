@@ -1,5 +1,5 @@
 {
-  "board_csv": "/home/oi/MMDL/board_probabilities_by_window_torch.csv",
+  "board_csv": "/home/oi/MMDL/deploy/board_probabilities_by_window_torch.csv",
   "onnx": "/home/oi/MMDL/deploy/artifacts/hcaf_pcen_dualxattn.onnx",
   "config": "/home/oi/MMDL/configs/final_model_unified_evidence.yaml",
   "window_sec": 5.0,

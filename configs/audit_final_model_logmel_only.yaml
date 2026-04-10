@@ -1,7 +1,7 @@
 seed: 20260330
 data_root: data
-output_root: summary-MMmodel/hcaf_confgate_filter_lowpass300
-summary_markdown: summary-MMmodel/hcaf_confgate_filter_lowpass300/EXPERIMENT_SUMMARY.md
+output_root: summary-MMmodel/final_model_logmel_only
+summary_markdown: summary-MMmodel/final_model_logmel_only/EXPERIMENT_SUMMARY.md
 split_manifest_source: summary-MMmodel/pq_vs_multimodal_check/split_manifest.json
 
 session_filter:
@@ -57,47 +57,57 @@ grouped_cv:
   n_repeats: 1
   val_fraction_of_train: 0.25
 
+audio_frontend:
+  feature_type: logmel
+  n_mels: 96
+  f_min: 80.0
+  f_max: 6000.0
+  highpass_hz: null
+
 report:
-  primary_experiment: hcaf_confgate_residual_pcen96lp300_5s
-  baseline_experiment: hcaf_confgate_residual_pcen96lp300_5s
+  primary_experiment: hcaf_confgate_residual_logmel96_sa0_nosummary_5s
+  baseline_experiment: hcaf_confgate_residual_logmel96_sa0_nosummary_5s
   main_experiment_names:
-    - hcaf_confgate_residual_pcen96lp300_5s
-    - hcaf_confgate_residual_pcen96hp80lp300_5s
-  window_experiment_names: []
-  ablation_experiment_names: []
+    - hcaf_confgate_residual_logmel96_sa0_nosummary_5s
+  window_experiment_names:
+    - hcaf_confgate_residual_logmel96_sa0_nosummary_5s
+  ablation_experiment_names:
+    - hcaf_confgate_residual_logmel96_sa0_nosummary_5s
 
 main_experiments:
-  - name: hcaf_confgate_residual_pcen96lp300_5s
-    display_name: HCAF confgate+residual + PCEN96 LP300
+  - name: hcaf_confgate_residual_logmel96_sa0_nosummary_5s
+    display_name: HCAF-LogMel96-DualXAttn
     modality: multimodal
     window_sec: 5.0
     group: main
-    config_overrides:
-      audio_frontend:
-        feature_type: pcen
-        n_mels: 96
-        f_min: 0.0
-        f_max: 300.0
-        lowpass_hz: 300.0
 
-  - name: hcaf_confgate_residual_pcen96hp80lp300_5s
-    display_name: HCAF confgate+residual + PCEN96 BP80-300
+window_length_experiments:
+  - name: hcaf_confgate_residual_logmel96_sa0_nosummary_5s
+    display_name: HCAF-LogMel96-DualXAttn 5 s
     modality: multimodal
     window_sec: 5.0
-    group: main
-    config_overrides:
-      audio_frontend:
-        feature_type: pcen
-        n_mels: 96
-        f_min: 80.0
-        f_max: 300.0
-        highpass_hz: 80.0
-        lowpass_hz: 300.0
+    group: window
 
-window_length_experiments: []
-ablation_experiments: []
+ablation_experiments:
+  - name: hcaf_confgate_residual_logmel96_sa0_nosummary_5s
+    display_name: HCAF-LogMel96-DualXAttn
+    modality: multimodal
+    window_sec: 5.0
+    group: ablation
 
 models:
+  audio_only:
+    dropout: 0.3
+    base_channels: 16
+  pressure_flow:
+    architecture: advanced
+    dropout: 0.3
+    hidden_dim: 128
+    base_channels: 16
+    embedding_dim: 64
+    tcn_layers: 3
+    num_heads: 4
+    fusion_method: gated
   multimodal:
     architecture: advanced
     model_type: hcaf_net
@@ -113,7 +123,8 @@ models:
     final_fusion_method: softmax_gate
     audio_token_frames: 12
     sensor_token_length: 16
-    self_attention_layers: 1
+    self_attention_layers: 0
+    use_summary_in_repr: false
     audio_in_channels: 1
     legacy_shared_sensor_norm: false
     confidence_aware_gate: true

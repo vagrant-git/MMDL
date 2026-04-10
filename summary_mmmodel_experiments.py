@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import copy
 import csv
+import hashlib
 from collections import Counter
 from pathlib import Path
 from typing import Dict, List
@@ -42,6 +43,13 @@ def _mean_std(values: List[float]) -> Dict[str, float]:
 
 def _format_metric(metric: Dict[str, float]) -> str:
     return f"{metric['mean']:.4f} ± {metric['std']:.4f}"
+
+
+def _derive_seed(base_seed: int, *parts: str) -> int:
+    material = "::".join(parts).encode("utf-8")
+    digest = hashlib.sha256(material).digest()
+    offset = int.from_bytes(digest[:4], byteorder="big", signed=False)
+    return (base_seed + offset) % (2**31)
 
 
 def _load_split_defs_from_manifest(
@@ -146,7 +154,8 @@ def main() -> None:
 
     log_runtime_environment()
     config = load_config(args.config)
-    set_seed(int(config["seed"]))
+    base_seed = int(config["seed"])
+    set_seed(base_seed)
     output_root = ensure_dir(config["output_root"])
     summary_markdown = Path(config["summary_markdown"])
     if summary_markdown.exists():
@@ -197,7 +206,10 @@ def main() -> None:
         if exp_name in experiment_results:
             continue
 
+        exp_seed = _derive_seed(base_seed, exp_name)
+        set_seed(exp_seed)
         exp_cfg = copy.deepcopy(config)
+        exp_cfg["seed"] = exp_seed
         exp_cfg["window_sec"] = float(experiment["window_sec"])
         exp_cfg["window_hop_sec"] = float(experiment["window_sec"])
         for cfg_key in ["config_overrides", "model_overrides"]:
@@ -214,13 +226,17 @@ def main() -> None:
 
         for split_def in split_defs:
             fold_name = split_def["name"]
+            fold_seed = _derive_seed(base_seed, exp_name, fold_name)
+            set_seed(fold_seed)
             run_dir = output_root / "runs" / exp_name / fold_name
             summary_path = run_dir / "summary.json"
             if summary_path.exists():
                 summary = read_json(summary_path)
             else:
+                fold_cfg = copy.deepcopy(exp_cfg)
+                fold_cfg["seed"] = fold_seed
                 summary = train_and_evaluate_with_splits(
-                    config=exp_cfg,
+                    config=fold_cfg,
                     modality=modality,
                     run_dir=run_dir,
                     splits={"train": split_def["train"], "val": split_def["val"], "test": split_def["test"]},

@@ -5,8 +5,7 @@ summary_markdown: outputs/iter_pressure_flow_fusion/EXPERIMENT_SUMMARY.md
 split_manifest_source: summary-MMmodel/split_manifest.json
 
 session_filter:
-  exclude_session_ids:
-    - "MMdata_265.10s_0322_224132_no_secretion"
+  exclude_session_ids: []
 
 task:
   class_subset: [0, 2, 4]

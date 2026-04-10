@@ -1,7 +1,0 @@
-experiment,display_name,group,fold,window_accuracy,window_macro_f1,window_precision,window_recall,best_session_method,session_accuracy,session_macro_f1,session_precision,session_recall,best_epoch
-hcaf_audio_r18img_pq_tcn_5s,Audio R18 ImageNet + PQ TCN (baseline),main,repeat1_fold1,0.8155102040816327,0.8094314959579801,0.8957881891048044,0.8135313531353136,majority_voting,0.8333333333333334,0.8222222222222223,0.8888888888888888,0.8333333333333334,5
-hcaf_audio_r18img_pq_tcn_5s,Audio R18 ImageNet + PQ TCN (baseline),main,repeat1_fold2,0.9671746776084408,0.9599032790780205,0.9638528416634545,0.9576112846943624,majority_voting,1.0,1.0,1.0,1.0,2
-hcaf_audio_r18img_pq_tcn_5s,Audio R18 ImageNet + PQ TCN (baseline),main,repeat1_fold3,0.970108695652174,0.9741739612053535,0.9748340929079715,0.9749361430395913,majority_voting,1.0,1.0,1.0,1.0,6
-hcaf_audio_r18img_pq_tcn_focal_5s,Audio R18 ImageNet + PQ TCN (Focal loss),main,repeat1_fold1,0.8040816326530612,0.7959637763389181,0.8937583001328021,0.8019801980198019,majority_voting,0.8333333333333334,0.8222222222222223,0.8888888888888888,0.8333333333333334,4
-hcaf_audio_r18img_pq_tcn_focal_5s,Audio R18 ImageNet + PQ TCN (Focal loss),main,repeat1_fold2,0.9953106682297772,0.9941900559634315,0.9953216374269006,0.9931623931623932,majority_voting,1.0,1.0,1.0,1.0,4
-hcaf_audio_r18img_pq_tcn_focal_5s,Audio R18 ImageNet + PQ TCN (Focal loss),main,repeat1_fold3,0.9769021739130435,0.9794350588879638,0.9815473175819337,0.9779567257714813,majority_voting,1.0,1.0,1.0,1.0,4

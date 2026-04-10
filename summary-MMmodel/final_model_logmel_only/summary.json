@@ -19,10 +19,8 @@
       },
       "session_filter": {
         "include_session_ids": [],
-        "exclude_session_ids": [
-          "MMdata_265.10s_0322_224132_no_secretion"
-        ],
-        "num_sessions_before_filter": 29,
+        "exclude_session_ids": [],
+        "num_sessions_before_filter": 28,
         "num_sessions_after_filter": 28
       }
     },
